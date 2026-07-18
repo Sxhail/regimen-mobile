@@ -1,14 +1,6 @@
 import type { AppState, CalendarBlock, CalendarEvent, GoalBucketKey, Habit, MetricField, PromptSet, Task, TaskGroup } from "./types";
 
-// "Started work before phone" and "No doomscrolling before work" are matched
-// by label in the win/lose-day snapshot logic — keep these strings exact.
-export const defaultHabits: Habit[] = [
-  { id: "habit-1", label: "Started work before phone", checked: false },
-  { id: "habit-2", label: "Completed deep work session", checked: false },
-  { id: "habit-3", label: "No doomscrolling before work", checked: false },
-  { id: "habit-4", label: "Workout", checked: false },
-  { id: "habit-5", label: "Journal completed", checked: false },
-];
+export const defaultHabits: Habit[] = [];
 
 export const defaultTasks: Task[] = [];
 

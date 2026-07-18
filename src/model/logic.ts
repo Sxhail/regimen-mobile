@@ -35,8 +35,7 @@ export function buildSnapshot(state: AppState, elapsedSeconds = 0): DailySnapsho
     focusSeconds: state.todayFocusSeconds + elapsedSeconds,
     completedTasks: getCompletedTasksForDay(state.tasks, state.currentDayKey).length,
     completedHabits: state.habits.filter((habit) => habit.checked).length,
-    startedBeforePhone: state.habits.some((habit) => habit.label === "Started work before phone" && habit.checked),
-    avoidedScrollingBeforeWork: state.habits.some((habit) => habit.label === "No doomscrolling before work" && habit.checked),
+    totalHabits: state.habits.length,
   };
 }
 
@@ -212,7 +211,8 @@ export function getDerivedElapsedSeconds(state: AppState, now: number) {
 }
 
 export function isSnapshotWon(snapshot: DailySnapshot) {
-  return snapshot.focusSeconds > 0 && snapshot.startedBeforePhone && snapshot.avoidedScrollingBeforeWork;
+  const totalHabits = snapshot.totalHabits ?? 0;
+  return snapshot.focusSeconds > 0 && (totalHabits > 0 ? snapshot.completedHabits === totalHabits : snapshot.completedTasks > 0);
 }
 
 export function getDaysWonCount(snapshots: DailySnapshot[]) {

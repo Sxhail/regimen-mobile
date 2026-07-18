@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createInitialState } from "./defaults";
-import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
+import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, DailySnapshot, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
 
 export const STORAGE_KEY = "execution-os-state:v1";
 export const DAY_MODULES_KEY = "execution-os-day-modules:v1";
@@ -140,6 +140,30 @@ function normalizeCalendarBlocks(parsed: Partial<AppState>, fallback: AppState):
     });
 }
 
+function normalizeDailySnapshots(parsed: Partial<AppState>, fallback: AppState): AppState["dailySnapshots"] {
+  if (!isPlainObject(parsed.dailySnapshots)) {
+    return fallback.dailySnapshots;
+  }
+
+  const toFiniteNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+  const entries = Object.entries(parsed.dailySnapshots)
+    .filter(([, snapshot]) => isPlainObject(snapshot))
+    .map(([dayKey, snapshot]) => {
+      const s = snapshot as Record<string, unknown>;
+      const normalized: DailySnapshot = {
+        dayKey: typeof s.dayKey === "string" ? s.dayKey : dayKey,
+        focusSeconds: toFiniteNumber(s.focusSeconds),
+        completedTasks: toFiniteNumber(s.completedTasks),
+        completedHabits: toFiniteNumber(s.completedHabits),
+        totalHabits: toFiniteNumber(s.totalHabits),
+      };
+      return [dayKey, normalized] as const;
+    });
+
+  return Object.fromEntries(entries);
+}
+
 function normalizeDailyHistory(parsed: Partial<AppState>, fallback: AppState) {
   const raw = parsed.dailyHistory;
   if (!isPlainObject(raw)) {
@@ -178,7 +202,7 @@ export function normalizeStoredState(rawValue: string | null): AppState {
       breakMinutes: parsed.pomodoroConfig?.breakMinutes ?? fallback.pomodoroConfig.breakMinutes,
       rounds: parsed.pomodoroConfig?.rounds ?? fallback.pomodoroConfig.rounds,
     };
-    const dailySnapshots = isPlainObject(parsed.dailySnapshots) ? (parsed.dailySnapshots as AppState["dailySnapshots"]) : fallback.dailySnapshots;
+    const dailySnapshots = normalizeDailySnapshots(parsed, fallback);
     const focusSessions = Array.isArray(parsed.focusSessions) ? parsed.focusSessions : fallback.focusSessions;
     const calendarEvents = normalizeCalendarEvents(parsed, fallback);
     const calendarBlocks = normalizeCalendarBlocks(parsed, fallback);

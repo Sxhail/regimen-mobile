@@ -116,8 +116,10 @@ export type DailySnapshot = {
   focusSeconds: number;
   completedTasks: number;
   completedHabits: number;
-  startedBeforePhone: boolean;
-  avoidedScrollingBeforeWork: boolean;
+  totalHabits: number;
+  // Legacy fields kept optional for backward compatibility with persisted snapshots.
+  startedBeforePhone?: boolean;
+  avoidedScrollingBeforeWork?: boolean;
 };
 
 export type DailyHistoryEntry = {
