@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { createInitialState, getDayKey } from "../model/defaults";
 import {
@@ -12,7 +11,7 @@ import {
   normalizePomodoroConfig,
   withCommittedElapsed,
 } from "../model/logic";
-import { DAY_MODULES_KEY, loadStoredState, STORAGE_KEY } from "../model/storage";
+import { loadStoredDayModules, loadStoredState, storeDayModules, storeState } from "../model/storage";
 import type {
   AccentKey,
   AppState,
@@ -136,7 +135,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => {
       try {
         const [loadedState, rawModules] = await Promise.all([
           loadStoredState(),
-          AsyncStorage.getItem(DAY_MODULES_KEY),
+          loadStoredDayModules(),
         ]);
         const todayKey = getDayKey();
         const normalizedLoadedState = {
@@ -743,11 +742,11 @@ useExecutionStore.subscribe((store, previous) => {
       clearTimeout(persistTimer);
     }
     persistTimer = setTimeout(() => {
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(useExecutionStore.getState().state)).catch(() => {});
+      storeState(useExecutionStore.getState().state).catch(() => {});
     }, 250);
   }
 
   if (store.dayModules !== previous.dayModules) {
-    AsyncStorage.setItem(DAY_MODULES_KEY, JSON.stringify(store.dayModules)).catch(() => {});
+    storeDayModules(JSON.stringify(store.dayModules)).catch(() => {});
   }
 });

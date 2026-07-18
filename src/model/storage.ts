@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { kvGet, kvSet } from "./db";
 import { createInitialState } from "./defaults";
 import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, DailySnapshot, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
 
@@ -236,11 +237,36 @@ export function normalizeStoredState(rawValue: string | null): AppState {
   }
 }
 
+// Reads a value from the SQLite kv store, falling back to a one-time migration
+// from AsyncStorage on first run. The legacy AsyncStorage copy is kept as a
+// backup (not deleted) once seeded into kv.
+async function loadMigratedValue(key: string): Promise<string | null> {
+  const kvValue = await kvGet(key);
+  if (kvValue !== null) {
+    return kvValue;
+  }
+
+  const legacyValue = await AsyncStorage.getItem(key);
+  if (legacyValue !== null) {
+    await kvSet(key, legacyValue);
+  }
+
+  return legacyValue;
+}
+
 export async function loadStoredState(): Promise<AppState> {
-  const rawValue = await AsyncStorage.getItem(STORAGE_KEY);
+  const rawValue = await loadMigratedValue(STORAGE_KEY);
   return normalizeStoredState(rawValue);
 }
 
 export async function storeState(state: AppState) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  await kvSet(STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function loadStoredDayModules(): Promise<string | null> {
+  return loadMigratedValue(DAY_MODULES_KEY);
+}
+
+export async function storeDayModules(rawValue: string) {
+  await kvSet(DAY_MODULES_KEY, rawValue);
 }
