@@ -12,7 +12,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.baazjameel.executionos"
+      "bundleIdentifier": "com.baazjameel.executionos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,6 +32,13 @@
     "plugins": [
       "expo-router",
       "expo-status-bar"
-    ]
+    ],
+    "owner": "sxhail",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8a3902ee-06df-41e1-a198-9b78793e5b5c"
+      }
+    }
   }
 }
