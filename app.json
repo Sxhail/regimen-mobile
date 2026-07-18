@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Execution OS",
+    "name": "REGIMEN",
     "slug": "regimen-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,7 +31,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ]
     ],
     "owner": "sxhail",
     "extra": {
