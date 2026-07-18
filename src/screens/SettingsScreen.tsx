@@ -11,12 +11,6 @@ import { AppButton, AppTextInput, Card, IconButton, MutedLabel, Row, SegmentedCo
 
 const ACCENTS: AccentKey[] = ["indigo", "blue", "violet"];
 
-const PRINCIPLE_NOTES = [
-  "One place for the day. No app-switching before noon.",
-  "The plan is the boss. Times are suggestions; order is not.",
-  "Win the start. The first 60 minutes decide the day.",
-];
-
 export function SettingsScreen() {
   const { tokens } = useTheme();
   const state = useAppState();
@@ -146,15 +140,6 @@ export function SettingsScreen() {
             }}
           />
         </View>
-      </Card>
-
-      <Card style={{ gap: 10 }}>
-        <MutedLabel>Principles</MutedLabel>
-        {PRINCIPLE_NOTES.map((note) => (
-          <Text key={note} style={{ color: tokens.textSecondary, fontSize: 14, lineHeight: 20 }}>
-            · {note}
-          </Text>
-        ))}
       </Card>
     </ScrollView>
   );

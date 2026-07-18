@@ -27,8 +27,6 @@ export const defaultGoals: AppState["goals"] = {
   today: [],
 };
 
-export const defaultPrinciples: AppState["principles"] = [];
-
 export const defaultCalendarEvents: CalendarEvent[] = [];
 export const defaultCalendarBlocks: CalendarBlock[] = [];
 
@@ -57,9 +55,7 @@ export function createInitialState(): AppState {
     prompts: defaultPrompts,
     metrics: defaultMetrics,
     goals: defaultGoals,
-    principles: defaultPrinciples,
     goalDrafts: defaultGoalDrafts,
-    principleDraft: { title: "", note: "" },
     activeTaskId: null,
     activeCalendarEventId: null,
     isRunning: false,

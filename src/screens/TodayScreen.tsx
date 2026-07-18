@@ -17,7 +17,6 @@ import {
 import { DAY_MODULE_IDS, useExecutionStore, type DayModuleId } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
 import { AppButton, AppTextInput, Card, CheckCircle, EmptyState, MutedLabel, Row, Sheet, StatTile, SwitchRow } from "../ui/primitives";
-import { PrinciplesPanel } from "../components/PrinciplesPanel";
 import { ScreenHeader } from "../components/ScreenHeader";
 
 const DAY_MODULE_LABELS: Record<DayModuleId, string> = {
@@ -26,7 +25,6 @@ const DAY_MODULE_LABELS: Record<DayModuleId, string> = {
   goals: "Goals preview",
   habits: "Habits",
   stats: "Focus stats",
-  principles: "Principles",
   inputs: "Custom inputs",
 };
 
@@ -247,8 +245,6 @@ export function TodayScreen() {
           <StatTile label="Completed" value={String(completedTasks)} />
         </Row>
       ) : null}
-
-      {enabled("principles") ? <PrinciplesPanel /> : null}
 
       {enabled("inputs") && state.metrics.length > 0 ? (
         <Card style={{ gap: 12 }}>
