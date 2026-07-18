@@ -27,7 +27,7 @@ export function MoreScreen() {
       style={{ flex: 1, backgroundColor: tokens.bg }}
       contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 140, gap: 10 }}
     >
-      <ScreenHeader title="More" subtitle="Everything else in Execution OS." />
+      <ScreenHeader title="More" />
       {LINKS.map(({ href, label, description, icon: Icon }) => (
         <Pressable key={label} onPress={() => router.push(href)}>
           <Card style={{ paddingVertical: 14 }}>

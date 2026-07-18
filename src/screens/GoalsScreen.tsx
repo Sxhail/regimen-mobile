@@ -6,7 +6,7 @@ import type { GoalBucketKey } from "../model/types";
 import { useAppState } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
-import { AppButton, AppTextInput, Card, EmptyState, IconButton, Row, Subtitle } from "../ui/primitives";
+import { AppButton, AppTextInput, Card, EmptyState, IconButton, Row } from "../ui/primitives";
 
 const BUCKETS: Array<{ bucket: GoalBucketKey; title: string; addLabel: string }> = [
   { bucket: "vision", title: "Yearly", addLabel: "Add yearly goal" },
@@ -27,8 +27,6 @@ export function GoalsScreen() {
       contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Subtitle>A simple hierarchy from identity to today's execution.</Subtitle>
-
       {BUCKETS.map(({ bucket, title, addLabel }) => (
         <Card key={bucket} style={{ gap: 12 }}>
           <Text style={{ color: tokens.text, fontSize: 19, fontWeight: "700" }}>{title}</Text>

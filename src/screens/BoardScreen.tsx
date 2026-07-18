@@ -7,7 +7,7 @@ import type { Task, TaskKanbanStatus } from "../model/types";
 import { useAppState, useLiveTasks } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
-import { AppButton, AppTextInput, Card, EmptyState, IconButton, MutedLabel, Row, Subtitle } from "../ui/primitives";
+import { AppButton, AppTextInput, Card, EmptyState, IconButton, MutedLabel, Row } from "../ui/primitives";
 
 const COLUMNS: Array<{ key: TaskKanbanStatus; title: string; empty: string }> = [
   { key: "backlog", title: "Backlog", empty: "No tasks in backlog." },
@@ -116,9 +116,6 @@ export function BoardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.bg }}>
-      <View style={{ paddingHorizontal: 18, paddingTop: 14, gap: 4 }}>
-        <Subtitle>Drag-free kanban. Move tasks between columns to track progress.</Subtitle>
-      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

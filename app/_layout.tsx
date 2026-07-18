@@ -22,6 +22,7 @@ function RootStack() {
           headerTintColor: tokens.text,
           headerTitleStyle: { fontWeight: "700" },
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: "minimal",
           contentStyle: { backgroundColor: tokens.bg },
         }}
       >

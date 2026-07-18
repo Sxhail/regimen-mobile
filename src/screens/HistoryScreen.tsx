@@ -8,7 +8,7 @@ import { dayKeyToDate, formatDateLabel, formatSeconds } from "../model/time";
 import type { DailyHistoryEntry } from "../model/types";
 import { useHistoryEntries } from "../store/derived";
 import { useTheme } from "../theme/ThemeContext";
-import { AppButton, Card, EmptyState, IconButton, MutedLabel, Row, StatTile, Subtitle } from "../ui/primitives";
+import { AppButton, Card, EmptyState, IconButton, MutedLabel, Row, StatTile } from "../ui/primitives";
 
 function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
   const { tokens } = useTheme();
@@ -161,8 +161,6 @@ export function HistoryScreen() {
       style={{ flex: 1, backgroundColor: tokens.bg }}
       contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
     >
-      <Subtitle>When a day rolls over or is reset, it is archived here.</Subtitle>
-
       <Card style={{ gap: 12 }}>
         <Row style={{ justifyContent: "space-between" }}>
           <IconButton onPress={() => moveMonth(-1)} accessibilityLabel="Previous month">

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { getDayKey } from "../model/defaults";
 import { useDayOutcomeByKey } from "../store/derived";
 import { useTheme } from "../theme/ThemeContext";
-import { Card, IconButton, MutedLabel, Row, Subtitle } from "../ui/primitives";
+import { Card, IconButton, MutedLabel, Row } from "../ui/primitives";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -23,10 +23,6 @@ export function LifeScreen() {
       style={{ flex: 1, backgroundColor: tokens.bg }}
       contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
     >
-      <Subtitle>
-        A year view of won and lost days. Green means the day was won. Red means the day was logged but lost.
-      </Subtitle>
-
       <Card style={{ gap: 14 }}>
         <Row style={{ justifyContent: "space-between" }}>
           <Row gap={10}>

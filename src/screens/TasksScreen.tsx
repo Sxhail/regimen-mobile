@@ -141,7 +141,7 @@ export function TasksScreen() {
         contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 160, gap: 16 }}
         keyboardShouldPersistTaps="handled"
       >
-        <ScreenHeader title="Tasks" subtitle="Organize work by function. Long-press a title to rename." />
+        <ScreenHeader title="Tasks" />
 
         {focusedGroupId ? (
           <Card style={{ backgroundColor: tokens.accentSubtle }}>

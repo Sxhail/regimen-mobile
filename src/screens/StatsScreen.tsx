@@ -155,7 +155,7 @@ export function StatsScreen() {
       contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 140, gap: 16 }}
       keyboardShouldPersistTaps="handled"
     >
-      <ScreenHeader title="Stats" subtitle="Focus output and habit streaks." />
+      <ScreenHeader title="Stats" />
 
       <Card style={{ gap: 14 }}>
         <MutedLabel>Focus by day</MutedLabel>

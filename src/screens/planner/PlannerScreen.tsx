@@ -506,7 +506,7 @@ export function PlannerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: tokens.bg, paddingTop: insets.top + 10 }}>
       <View style={{ paddingHorizontal: 18, gap: 10 }}>
-        <ScreenHeader title="Planner" subtitle="Plan your calendar across days, weeks, and months." />
+        <ScreenHeader title="Planner" />
 
         <Row style={{ justifyContent: "space-between" }}>
           <Row gap={6}>

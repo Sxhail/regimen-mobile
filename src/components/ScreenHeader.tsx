@@ -2,16 +2,13 @@ import React from "react";
 import { Alert, View } from "react-native";
 import { Clock3, TimerReset } from "lucide-react-native";
 
-import { useCurrentMonthLabel, useTodayDateLabel } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
-import { IconButton, MutedLabel, Row, Subtitle, Title } from "../ui/primitives";
+import { IconButton, Row, Title } from "../ui/primitives";
 
-// Global header (web top bar parity): month, date, Reset day, Timer toggle.
-export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+// Global header (web top bar parity): title, Reset day, Timer toggle.
+export function ScreenHeader({ title }: { title: string }) {
   const { tokens } = useTheme();
-  const currentMonthLabel = useCurrentMonthLabel();
-  const todayDateLabel = useTodayDateLabel();
   const resetToday = useExecutionStore((store) => store.resetToday);
   const showFloatingTimer = useExecutionStore((store) => store.state.showFloatingTimer);
   const setShowFloatingTimer = useExecutionStore((store) => store.setShowFloatingTimer);
@@ -24,12 +21,9 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
   };
 
   return (
-    <View style={{ gap: 12, paddingBottom: 14 }}>
+    <View style={{ paddingBottom: 14 }}>
       <Row style={{ justifyContent: "space-between" }}>
-        <View style={{ gap: 2 }}>
-          <MutedLabel>{currentMonthLabel}</MutedLabel>
-          <Subtitle style={{ fontWeight: "600", color: tokens.textSecondary }}>{todayDateLabel}</Subtitle>
-        </View>
+        <Title>{title}</Title>
         <Row gap={8}>
           <IconButton onPress={confirmReset} accessibilityLabel="Reset day">
             <TimerReset size={17} color={tokens.textSecondary} />
@@ -39,10 +33,6 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
           </IconButton>
         </Row>
       </Row>
-      <View style={{ gap: 4 }}>
-        <Title>{title}</Title>
-        {subtitle ? <Subtitle>{subtitle}</Subtitle> : null}
-      </View>
     </View>
   );
 }

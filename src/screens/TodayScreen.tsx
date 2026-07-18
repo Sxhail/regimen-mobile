@@ -12,7 +12,6 @@ import {
   useCompletedHabitsCount,
   useCompletedTasksCount,
   useTodayAgenda,
-  useTodayDateLabel,
   useTodayFocusSeconds,
 } from "../store/derived";
 import { DAY_MODULE_IDS, useExecutionStore, type DayModuleId } from "../store/executionStore";
@@ -37,7 +36,6 @@ export function TodayScreen() {
   const router = useRouter();
 
   const state = useAppState();
-  const todayDateLabel = useTodayDateLabel();
   const todayAgenda = useTodayAgenda();
   const completedAgendaIds = useCompletedAgendaIds();
   const activeCalendarEvent = useActiveCalendarEvent();
@@ -73,7 +71,7 @@ export function TodayScreen() {
       style={{ flex: 1, backgroundColor: tokens.bg }}
       contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 140, gap }}
     >
-      <ScreenHeader title="Today" subtitle={`${todayDateLabel} · Work the plan at your pace.`} />
+      <ScreenHeader title="Today" />
 
       <AppButton
         label="Customize"
