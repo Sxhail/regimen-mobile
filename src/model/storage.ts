@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { kvGet, kvSet } from "./db";
 import { createInitialState } from "./defaults";
-import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, DailySnapshot, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
+import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, DailySnapshot, FontStyleId, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
 
 export const STORAGE_KEY = "execution-os-state:v1";
 export const DAY_MODULES_KEY = "execution-os-day-modules:v1";
@@ -32,6 +32,14 @@ function normalizeCalendarRepeat(value: unknown): CalendarRepeat {
 
 function normalizeThemeMode(value: unknown): ThemeMode {
   if (value === "light" || value === "dark" || value === "system") {
+    return value;
+  }
+
+  return "system";
+}
+
+function normalizeFontStyle(value: unknown): FontStyleId {
+  if (value === "system" || value === "inter" || value === "lora" || value === "mono") {
     return value;
   }
 
@@ -226,6 +234,7 @@ export function normalizeStoredState(rawValue: string | null): AppState {
       pomodoroPhase: parsed.pomodoroPhase === "break" ? "break" : "focus",
       pomodoroConfig: normalizedPomodoroConfig,
       themeMode: normalizeThemeMode(parsed.themeMode),
+      fontStyle: normalizeFontStyle(parsed.fontStyle),
       focusSessions,
       calendarEvents,
       calendarBlocks,

@@ -21,6 +21,7 @@ import type {
   AppState,
   CalendarBlock,
   CalendarEvent,
+  FontStyleId,
   GoalBucketKey,
   GoalDraft,
   MetricField,
@@ -96,6 +97,7 @@ type ExecutionStore = {
   setCompactMode: (value: boolean) => void;
   setAccent: (value: AccentKey) => void;
   setThemeMode: (value: ThemeMode) => void;
+  setFontStyle: (value: FontStyleId) => void;
 
   addCalendarEvent: (event: Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">) => void;
   addCalendarEvents: (events: Array<Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">>) => void;
@@ -627,6 +629,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => {
     setCompactMode: (value) => update((current) => ({ ...current, compactMode: value })),
     setAccent: (value) => update((current) => ({ ...current, accent: value })),
     setThemeMode: (value) => update((current) => ({ ...current, themeMode: value })),
+    setFontStyle: (value) => update((current) => ({ ...current, fontStyle: value })),
 
     addCalendarEvent: (event) => {
       update((current) => ({

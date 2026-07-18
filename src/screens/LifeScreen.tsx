@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 
 import { getDayKey } from "../model/defaults";

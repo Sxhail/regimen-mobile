@@ -1,5 +1,7 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, type Href } from "expo-router";
 import { BookOpen, ChevronRight, Flag, History, Kanban, Settings, Sparkles } from "lucide-react-native";

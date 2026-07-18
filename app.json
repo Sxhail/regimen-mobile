@@ -41,7 +41,8 @@
           "imageWidth": 200
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font"
     ],
     "owner": "sxhail",
     "extra": {

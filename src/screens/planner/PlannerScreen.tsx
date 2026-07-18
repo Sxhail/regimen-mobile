@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+
+import { AppText as Text } from "../../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, ChevronLeft, ChevronRight, FileJson, LayoutTemplate, Plus, Repeat, Search } from "lucide-react-native";
 

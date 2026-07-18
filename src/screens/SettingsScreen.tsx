@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { Trash2 } from "lucide-react-native";
 
-import type { AccentKey, MetricType, ThemeMode } from "../model/types";
+import type { AccentKey, FontStyleId, MetricType, ThemeMode } from "../model/types";
 import { useAppState } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
@@ -15,6 +17,7 @@ export function SettingsScreen() {
   const { tokens } = useTheme();
   const state = useAppState();
   const setThemeMode = useExecutionStore((store) => store.setThemeMode);
+  const setFontStyle = useExecutionStore((store) => store.setFontStyle);
   const setAccent = useExecutionStore((store) => store.setAccent);
   const setCompactMode = useExecutionStore((store) => store.setCompactMode);
   const setShowFloatingTimer = useExecutionStore((store) => store.setShowFloatingTimer);
@@ -44,6 +47,20 @@ export function SettingsScreen() {
             ]}
             value={state.themeMode}
             onChange={setThemeMode}
+          />
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>Font Style</Text>
+          <SegmentedControl<FontStyleId>
+            options={[
+              { value: "system", label: "System" },
+              { value: "inter", label: "Inter" },
+              { value: "lora", label: "Lora" },
+              { value: "mono", label: "Mono" },
+            ]}
+            value={state.fontStyle}
+            onChange={setFontStyle}
           />
         </View>
 

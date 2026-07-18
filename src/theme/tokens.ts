@@ -1,7 +1,12 @@
-import type { AccentKey, CalendarColorKey } from "../model/types";
+import type { TextStyle } from "react-native";
+
+import type { AccentKey, CalendarColorKey, FontStyleId } from "../model/types";
 
 export type ThemeTokens = {
   scheme: "light" | "dark";
+  // undefined = use the platform system font (SF on iOS, Roboto on Android).
+  fontFamily?: string;
+  fontFamilyBold?: string;
   bg: string;
   bgMuted: string;
   surface: string;
@@ -88,6 +93,44 @@ export const ACCENT_LABELS: Record<AccentKey, string> = {
   blue: "Forest",
   violet: "Olive",
 };
+
+// Maps each selectable font style onto its loaded regular/bold family names.
+// `system` leaves both undefined so RN falls back to the platform system font.
+const FONT_FAMILIES: Record<FontStyleId, { fontFamily?: string; fontFamilyBold?: string }> = {
+  system: { fontFamily: undefined, fontFamilyBold: undefined },
+  inter: { fontFamily: "Inter_400Regular", fontFamilyBold: "Inter_700Bold" },
+  lora: { fontFamily: "Lora_400Regular", fontFamilyBold: "Lora_700Bold" },
+  mono: { fontFamily: "SpaceMono_400Regular", fontFamilyBold: "SpaceMono_700Bold" },
+};
+
+export function getFontFamilies(fontStyle: FontStyleId): { fontFamily?: string; fontFamilyBold?: string } {
+  return FONT_FAMILIES[fontStyle] ?? FONT_FAMILIES.system;
+}
+
+export const FONT_STYLE_LABELS: Record<FontStyleId, string> = {
+  system: "System",
+  inter: "Inter",
+  lora: "Lora",
+  mono: "Mono",
+};
+
+// RN gotcha: a custom `fontFamily` combined with a numeric `fontWeight` makes
+// iOS/Android silently fall back to the system font for bold text, because our
+// loaded families are single-weight files. So when a custom family is active we
+// pick the regular or bold family file directly and DROP fontWeight. For the
+// system font we pass the requested weight straight through.
+export function resolveFontStyle(
+  tokens: Pick<ThemeTokens, "fontFamily" | "fontFamilyBold">,
+  weight?: TextStyle["fontWeight"],
+): { fontFamily?: string; fontWeight?: TextStyle["fontWeight"] } {
+  if (!tokens.fontFamily) {
+    return weight !== undefined ? { fontWeight: weight } : {};
+  }
+
+  const numeric = typeof weight === "number" ? weight : typeof weight === "string" ? parseInt(weight, 10) : NaN;
+  const isBold = weight === "bold" || (Number.isFinite(numeric) && numeric >= 600);
+  return { fontFamily: isBold ? tokens.fontFamilyBold ?? tokens.fontFamily : tokens.fontFamily };
+}
 
 export type EventColorTokens = {
   label: string;

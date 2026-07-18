@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Crosshair, Pencil, Play, Plus, StickyNote, Trash2 } from "lucide-react-native";
 

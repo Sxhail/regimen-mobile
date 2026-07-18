@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Pencil, Trash2 } from "lucide-react-native";

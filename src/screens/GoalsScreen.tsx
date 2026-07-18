@@ -1,5 +1,7 @@
 import React from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { Trash2 } from "lucide-react-native";
 
 import type { GoalBucketKey } from "../model/types";

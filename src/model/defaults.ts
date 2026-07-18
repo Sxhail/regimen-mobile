@@ -69,6 +69,7 @@ export function createInitialState(): AppState {
     timerExpanded: false,
     accent: "indigo",
     themeMode: "system",
+    fontStyle: "system",
     focusSessions: [],
     calendarEvents: defaultCalendarEvents,
     calendarBlocks: defaultCalendarBlocks,

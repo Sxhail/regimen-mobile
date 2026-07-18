@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+
+import { AppText as Text } from "../../ui/AppText";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { Play, Trash2 } from "lucide-react-native";

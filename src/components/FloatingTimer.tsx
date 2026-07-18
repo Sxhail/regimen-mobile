@@ -1,5 +1,7 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, Maximize2, Pause, Play, Square, X } from "lucide-react-native";
 

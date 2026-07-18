@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
 import { X } from "lucide-react-native";
 
 import { useAppState } from "../store/derived";

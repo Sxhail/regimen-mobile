@@ -2,6 +2,7 @@ export type MetricType = "time" | "number" | "text";
 export type GoalBucketKey = "vision" | "month" | "today";
 export type AccentKey = "indigo" | "blue" | "violet";
 export type ThemeMode = "system" | "light" | "dark";
+export type FontStyleId = "system" | "inter" | "lora" | "mono";
 export type TimerMode = "free" | "pomodoro";
 export type PomodoroPhase = "focus" | "break";
 export type CalendarColorKey = "sage" | "mint" | "amber" | "rose" | "sky" | "violet";
@@ -165,6 +166,7 @@ export type AppState = {
   timerExpanded: boolean;
   accent: AccentKey;
   themeMode: ThemeMode;
+  fontStyle: FontStyleId;
   focusSessions: FocusSession[];
   calendarEvents: CalendarEvent[];
   calendarBlocks: CalendarBlock[];

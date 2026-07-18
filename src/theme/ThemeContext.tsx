@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import { useColorScheme } from "react-native";
 
 import { useExecutionStore } from "../store/executionStore";
-import { getEventColors, getHabitPalette, getThemeTokens, type ThemeTokens } from "./tokens";
+import { getEventColors, getFontFamilies, getHabitPalette, getThemeTokens, type ThemeTokens } from "./tokens";
 import type { CalendarColorKey } from "../model/types";
 import type { EventColorTokens } from "./tokens";
 
@@ -18,16 +18,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const themeMode = useExecutionStore((store) => store.state.themeMode);
   const accent = useExecutionStore((store) => store.state.accent);
+  const fontStyle = useExecutionStore((store) => store.state.fontStyle);
 
   const scheme: "light" | "dark" = themeMode === "system" ? (systemScheme === "light" ? "light" : "dark") : themeMode;
 
   const value = useMemo(
     () => ({
-      tokens: getThemeTokens(scheme, accent),
+      tokens: { ...getThemeTokens(scheme, accent), ...getFontFamilies(fontStyle) },
       eventColors: getEventColors(scheme),
       habitPalette: getHabitPalette(scheme),
     }),
-    [scheme, accent],
+    [scheme, accent, fontStyle],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

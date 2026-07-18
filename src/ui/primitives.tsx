@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
   type StyleProp,
@@ -16,6 +15,7 @@ import {
 import { Check, X } from "lucide-react-native";
 
 import { useTheme } from "../theme/ThemeContext";
+import { AppText as Text } from "./AppText";
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const { tokens } = useTheme();

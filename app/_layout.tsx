@@ -2,6 +2,10 @@ import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
+import { Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_700Bold } from "@expo-google-fonts/lora";
+import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
 
 import { ExecutionRuntime } from "../src/runtime/ExecutionRuntime";
 import { useExecutionStore } from "../src/store/executionStore";
@@ -12,6 +16,18 @@ import { FloatingTimer } from "../src/components/FloatingTimer";
 function RootStack() {
   const { tokens } = useTheme();
   const hydrated = useExecutionStore((store) => store.hydrated);
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Lora_400Regular,
+    Lora_500Medium,
+    Lora_600SemiBold,
+    Lora_700Bold,
+    SpaceMono_400Regular,
+    SpaceMono_700Bold,
+  });
 
   return (
     <>
@@ -35,7 +51,7 @@ function RootStack() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
       <FloatingTimer />
-      {!hydrated ? <LoadingScreen /> : null}
+      {!hydrated || !fontsLoaded ? <LoadingScreen /> : null}
     </>
   );
 }
