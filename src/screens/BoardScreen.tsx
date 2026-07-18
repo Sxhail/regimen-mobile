@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, Play, StickyNote } from "lucide-react-native";
 
 import { formatSeconds } from "../model/time";
@@ -7,7 +8,7 @@ import type { Task, TaskKanbanStatus } from "../model/types";
 import { useAppState, useLiveTasks } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
 import { useTheme } from "../theme/ThemeContext";
-import { AppButton, AppTextInput, Card, EmptyState, IconButton, MutedLabel, Row } from "../ui/primitives";
+import { AppButton, AppTextInput, Card, EmptyState, IconButton, MutedLabel, Row, SegmentedControl } from "../ui/primitives";
 
 const COLUMNS: Array<{ key: TaskKanbanStatus; title: string; empty: string }> = [
   { key: "backlog", title: "Backlog", empty: "No tasks in backlog." },
@@ -104,56 +105,53 @@ function BoardCard({ task }: { task: Task }) {
 
 export function BoardScreen() {
   const { tokens } = useTheme();
-  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const tasks = useLiveTasks();
-
-  const columnWidth = Math.min(320, width * 0.82);
+  const [selected, setSelected] = useState<TaskKanbanStatus>("backlog");
 
   const tasksFor = (column: TaskKanbanStatus) =>
     column === "done"
       ? tasks.filter((task) => task.completed)
       : tasks.filter((task) => !task.completed && task.kanbanStatus === column);
 
+  const activeColumn = COLUMNS.find((column) => column.key === selected) ?? COLUMNS[0];
+  const columnTasks = tasksFor(activeColumn.key);
+
   return (
     <View style={{ flex: 1, backgroundColor: tokens.bg }}>
+      <View style={{ paddingHorizontal: 18, paddingTop: insets.top + 10, paddingBottom: 12, gap: 14 }}>
+        <SegmentedControl<TaskKanbanStatus>
+          value={selected}
+          onChange={setSelected}
+          options={COLUMNS.map((column) => ({ value: column.key, label: column.title }))}
+        />
+        <Row style={{ justifyContent: "space-between" }}>
+          <Text style={{ color: tokens.text, fontSize: 17, fontWeight: "700" }}>{activeColumn.title}</Text>
+          <View
+            style={{
+              minWidth: 26,
+              height: 26,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              alignItems: "center",
+              justifyContent: "center",
+              paddingHorizontal: 8,
+            }}
+          >
+            <Text style={{ color: tokens.textSecondary, fontSize: 12, fontWeight: "700" }}>{columnTasks.length}</Text>
+          </View>
+        </Row>
+      </View>
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={columnWidth + 14}
-        decelerationRate="fast"
-        contentContainerStyle={{ padding: 18, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 120, gap: 10 }}
+        showsVerticalScrollIndicator={false}
       >
-        {COLUMNS.map((column) => {
-          const columnTasks = tasksFor(column.key);
-          return (
-            <View key={column.key} style={{ width: columnWidth, gap: 12 }}>
-              <Row style={{ justifyContent: "space-between" }}>
-                <Text style={{ color: tokens.text, fontSize: 17, fontWeight: "700" }}>{column.title}</Text>
-                <View
-                  style={{
-                    minWidth: 26,
-                    height: 26,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: tokens.border,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  <Text style={{ color: tokens.textSecondary, fontSize: 12, fontWeight: "700" }}>{columnTasks.length}</Text>
-                </View>
-              </Row>
-              <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-                {columnTasks.length === 0 ? (
-                  <EmptyState message={column.empty} />
-                ) : (
-                  columnTasks.map((task) => <BoardCard key={task.id} task={task} />)
-                )}
-              </ScrollView>
-            </View>
-          );
-        })}
+        {columnTasks.length === 0 ? (
+          <EmptyState message={activeColumn.empty} />
+        ) : (
+          columnTasks.map((task) => <BoardCard key={task.id} task={task} />)
+        )}
       </ScrollView>
     </View>
   );
