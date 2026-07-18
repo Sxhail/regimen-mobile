@@ -233,30 +233,15 @@ export function TasksScreen() {
             );
           })
         )}
-      </ScrollView>
 
-      <Pressable
-        onPress={() => setAddSectionOpen(true)}
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: 24 + insets.bottom,
-          width: 58,
-          height: 58,
-          borderRadius: 999,
-          backgroundColor: tokens.accent,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 8,
-        }}
-        accessibilityLabel="Add section"
-      >
-        <Plus size={26} color={tokens.onAccent} />
-      </Pressable>
+        <AppButton
+          label="Add section"
+          variant="outline"
+          icon={<Plus size={16} color={tokens.text} />}
+          onPress={() => setAddSectionOpen(true)}
+          style={{ alignSelf: "flex-start" }}
+        />
+      </ScrollView>
 
       <Sheet visible={addSectionOpen} onClose={() => setAddSectionOpen(false)} title="New section">
         <MutedLabel>Section name</MutedLabel>

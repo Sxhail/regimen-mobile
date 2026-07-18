@@ -13,7 +13,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { Check } from "lucide-react-native";
+import { Check, X } from "lucide-react-native";
 
 import { useTheme } from "../theme/ThemeContext";
 
@@ -350,13 +350,44 @@ export function Sheet({
         <View style={{ alignItems: "center", paddingTop: 10 }}>
           <View style={{ width: 42, height: 5, borderRadius: 999, backgroundColor: tokens.borderStrong }} />
         </View>
-        {title ? (
-          <Text style={{ fontSize: 18, fontWeight: "700", color: tokens.text, textAlign: "center", paddingVertical: 12 }}>
-            {title}
-          </Text>
-        ) : (
-          <View style={{ height: 10 }} />
-        )}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            paddingHorizontal: 18,
+            paddingTop: 12,
+            paddingBottom: title ? 12 : 8,
+          }}
+        >
+          {title ? (
+            <Text style={{ fontSize: 18, fontWeight: "700", color: tokens.text, flex: 1 }} numberOfLines={1}>
+              {title}
+            </Text>
+          ) : (
+            <View style={{ flex: 1 }} />
+          )}
+          <Pressable
+            onPress={onClose}
+            hitSlop={16}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 1,
+              borderColor: tokens.border,
+              backgroundColor: tokens.inputBg,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <X size={18} color={tokens.textSecondary} />
+          </Pressable>
+        </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24, gap: 14 }}
