@@ -12,6 +12,10 @@ import {
   withCommittedElapsed,
 } from "../model/logic";
 import { loadStoredDayModules, loadStoredState, storeDayModules, storeState } from "../model/storage";
+import {
+  cancelPomodoroPhaseEndNotifications,
+  schedulePomodoroPhaseEndNotification,
+} from "../runtime/notifications";
 import type {
   AccentKey,
   AppState,
@@ -728,6 +732,53 @@ useExecutionStore.subscribe((store, previous) => {
       state: { ...state, activeTaskId: null, isRunning: false, runningSince: null, sessionSeconds: 0 },
     });
   }
+});
+
+// Keep the scheduled pomodoro phase-end local notification in sync with timer
+// state. This single subscription covers every timer transition (start, resume,
+// phase advance -> reschedule the next boundary; pause, stop, complete, skip,
+// mode change, task removal -> cancel) without awaiting inside any action, so
+// set() stays synchronous. Notification calls are fire-and-forget (void).
+//
+// Only the NEXT phase boundary is scheduled while the app is backgrounded; the
+// foreground resync (ExecutionRuntime) advances phases and reschedules from there.
+let lastPhaseEndKey: string | null = null;
+useExecutionStore.subscribe((store, previous) => {
+  if (!store.hydrated || store.state === previous.state) {
+    return;
+  }
+
+  const { state } = store;
+  const canSchedule =
+    state.timerMode === "pomodoro" &&
+    state.isRunning &&
+    state.runningSince !== null &&
+    !state.activeCalendarEventId &&
+    state.timerTotalSeconds > 0;
+
+  // De-dupe: only act when the phase boundary actually changes, so unrelated
+  // state edits (notes, habits, etc.) don't churn the scheduled notification.
+  const key = canSchedule
+    ? `${state.runningSince}:${state.timerTotalSeconds}:${state.pomodoroPhase}`
+    : "none";
+  if (key === lastPhaseEndKey) {
+    return;
+  }
+  lastPhaseEndKey = key;
+
+  if (!canSchedule) {
+    void cancelPomodoroPhaseEndNotifications();
+    return;
+  }
+
+  const config = normalizePomodoroConfig(state.pomodoroConfig);
+  // timerTotalSeconds already holds the remaining seconds after any pause/resume,
+  // so the boundary is uniformly runningSince + timerTotalSeconds.
+  const fireAt = new Date((state.runningSince as number) + state.timerTotalSeconds * 1000);
+  void (async () => {
+    await cancelPomodoroPhaseEndNotifications();
+    await schedulePomodoroPhaseEndNotification(fireAt, state.pomodoroPhase, config.breakMinutes);
+  })();
 });
 
 // Persist AppState (debounced) and day-module selection on change.
