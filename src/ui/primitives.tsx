@@ -1,7 +1,9 @@
 import React from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -338,6 +340,11 @@ export function Sheet({
   const { tokens } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      {/* Keyboard-avoid so autofocused inputs don't leave the sheet hidden behind the keyboard (iOS). */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1, justifyContent: "flex-end" }}
+      >
       <Pressable style={{ flex: 1, backgroundColor: tokens.overlay }} onPress={onClose} />
       <View
         style={{
@@ -398,6 +405,7 @@ export function Sheet({
           {children}
         </ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
