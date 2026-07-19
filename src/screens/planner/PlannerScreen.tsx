@@ -508,20 +508,63 @@ export function PlannerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: tokens.bg, paddingTop: insets.top + 10 }}>
-      <View style={{ paddingHorizontal: 18, gap: 10 }}>
+      <View style={{ paddingHorizontal: 18, gap: 8 }}>
         <ScreenHeader title="Planner" />
 
-        <Row style={{ justifyContent: "space-between" }}>
-          <Row gap={6}>
-            <IconButton onPress={() => moveCursor(-1)} accessibilityLabel="Previous">
+        {/* Single compact control row: date navigation on the left (tap the
+            label to jump back to today), toolbar on the right. */}
+        <Row style={{ justifyContent: "space-between" }} gap={8}>
+          <Row gap={2} style={{ flexShrink: 1 }}>
+            <IconButton
+              onPress={() => moveCursor(-1)}
+              accessibilityLabel="Previous"
+              style={{ width: 30, height: 30, borderWidth: 0, backgroundColor: "transparent" }}
+            >
               <ChevronLeft size={16} color={tokens.textSecondary} />
             </IconButton>
-            <AppButton label="Today" small variant="outline" onPress={() => setCursorDate(new Date())} />
-            <IconButton onPress={() => moveCursor(1)} accessibilityLabel="Next">
+            <Pressable onPress={() => setCursorDate(new Date())} accessibilityLabel="Go to today" hitSlop={6}>
+              <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "700" }} numberOfLines={1}>
+                {rangeLabel}
+              </Text>
+            </Pressable>
+            <IconButton
+              onPress={() => moveCursor(1)}
+              accessibilityLabel="Next"
+              style={{ width: 30, height: 30, borderWidth: 0, backgroundColor: "transparent" }}
+            >
               <ChevronRight size={16} color={tokens.textSecondary} />
             </IconButton>
           </Row>
-          <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "700" }}>{rangeLabel}</Text>
+          <Row gap={6}>
+            <IconButton
+              onPress={() => setSearchOpen((open) => !open)}
+              accessibilityLabel="Search events"
+              style={[
+                { width: 30, height: 30 },
+                searchOpen || query.trim()
+                  ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent }
+                  : null,
+              ]}
+            >
+              <Search size={15} color={searchOpen || query.trim() ? tokens.accent : tokens.textSecondary} />
+            </IconButton>
+            <IconButton onPress={() => setImportOpen(true)} accessibilityLabel="Import JSON" style={{ width: 30, height: 30 }}>
+              <FileJson size={15} color={tokens.textSecondary} />
+            </IconButton>
+            <IconButton
+              onPress={() => {
+                setSlotTarget(null);
+                setBlocksOpen(true);
+              }}
+              accessibilityLabel="Blocks"
+              style={{ width: 30, height: 30 }}
+            >
+              <LayoutTemplate size={15} color={tokens.textSecondary} />
+            </IconButton>
+            <IconButton onPress={() => setRemindersOpen(true)} accessibilityLabel="Reminders" style={{ width: 30, height: 30 }}>
+              <Bell size={15} color={tokens.textSecondary} />
+            </IconButton>
+          </Row>
         </Row>
 
         <SegmentedControl<ViewMode>
@@ -534,35 +577,6 @@ export function PlannerScreen() {
           value={viewMode}
           onChange={setViewMode}
         />
-
-        <Row style={{ justifyContent: "flex-end" }} gap={8}>
-          <IconButton
-            onPress={() => setSearchOpen((open) => !open)}
-            accessibilityLabel="Search events"
-            style={
-              searchOpen || query.trim()
-                ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent }
-                : undefined
-            }
-          >
-            <Search size={16} color={searchOpen || query.trim() ? tokens.accent : tokens.textSecondary} />
-          </IconButton>
-          <IconButton onPress={() => setImportOpen(true)} accessibilityLabel="Import JSON">
-            <FileJson size={16} color={tokens.textSecondary} />
-          </IconButton>
-          <IconButton
-            onPress={() => {
-              setSlotTarget(null);
-              setBlocksOpen(true);
-            }}
-            accessibilityLabel="Blocks"
-          >
-            <LayoutTemplate size={16} color={tokens.textSecondary} />
-          </IconButton>
-          <IconButton onPress={() => setRemindersOpen(true)} accessibilityLabel="Reminders">
-            <Bell size={16} color={tokens.textSecondary} />
-          </IconButton>
-        </Row>
 
         {searchOpen ? (
           <Row
