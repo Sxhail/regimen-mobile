@@ -219,6 +219,9 @@ export function AppTextInput(props: TextInputProps) {
           paddingHorizontal: 14,
           paddingVertical: 10,
           fontSize: 15,
+          // Inputs follow the app font setting; an explicit fontFamily in
+          // props.style (e.g. monospace JSON import) still wins below.
+          fontFamily: tokens.fontFamily,
         },
         props.multiline ? { minHeight: 90, textAlignVertical: "top" } : null,
         props.style,

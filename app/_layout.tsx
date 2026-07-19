@@ -56,7 +56,11 @@ function RootStack() {
         screenOptions={{
           headerStyle: { backgroundColor: tokens.bg },
           headerTintColor: tokens.text,
-          headerTitleStyle: { fontWeight: "700" },
+          // Native header titles must follow the app font setting too. With a
+          // custom family we pick the bold file and drop fontWeight (RN gotcha).
+          headerTitleStyle: tokens.fontFamily
+            ? { fontFamily: tokens.fontFamilyBold ?? tokens.fontFamily }
+            : { fontWeight: "700" },
           headerShadowVisible: false,
           headerBackButtonDisplayMode: "minimal",
           contentStyle: { backgroundColor: tokens.bg },

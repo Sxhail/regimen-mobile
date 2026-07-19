@@ -17,6 +17,8 @@ export default function TabsLayout() {
           backgroundColor: tokens.tabBar,
           borderTopColor: tokens.border,
         },
+        // Tab labels follow the app font setting (single source of truth).
+        tabBarLabelStyle: tokens.fontFamily ? { fontFamily: tokens.fontFamily } : undefined,
         sceneStyle: { backgroundColor: tokens.bg },
       }}
     >
