@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, View } from "react-native";
 
 import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Crosshair, Pencil, Play, Plus, StickyNote, Trash2 } from "lucide-react-native";
+import { Crosshair, MoreHorizontal, Pencil, Play, Plus, StickyNote, Trash2 } from "lucide-react-native";
 
 import { formatSeconds } from "../model/time";
 import type { Task } from "../model/types";
@@ -25,6 +25,7 @@ function TaskRow({ task }: { task: Task }) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const isActive = state.activeTaskId === task.id;
 
@@ -74,19 +75,42 @@ function TaskRow({ task }: { task: Task }) {
             {formatSeconds(task.secondsSpent)}
           </Text>
         </View>
-        <IconButton onPress={() => setNotesOpen((open) => !open)} accessibilityLabel="Toggle notes">
-          <StickyNote size={14} color={task.notes ? tokens.accent : tokens.textMuted} />
-        </IconButton>
-        <IconButton onPress={() => setEditing(true)} accessibilityLabel="Edit task">
-          <Pencil size={14} color={tokens.textMuted} />
-        </IconButton>
-        <IconButton onPress={() => startTask(task.id)} disabled={task.completed} accessibilityLabel="Start task">
+        <IconButton onPress={() => startTask(task.id)} disabled={task.completed} accessibilityLabel="Start focus">
           <Play size={14} color={task.completed ? tokens.textMuted : tokens.accent} />
         </IconButton>
-        <IconButton onPress={() => deleteTask(task.id)} accessibilityLabel="Delete task">
-          <Trash2 size={14} color={tokens.danger} />
+        <IconButton
+          onPress={() => setActionsOpen((open) => !open)}
+          accessibilityLabel="More actions"
+          style={actionsOpen ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent } : undefined}
+        >
+          <MoreHorizontal size={14} color={actionsOpen ? tokens.accent : tokens.textMuted} />
         </IconButton>
       </Row>
+      {actionsOpen ? (
+        <Row gap={8} style={{ paddingLeft: 36, flexWrap: "wrap" }}>
+          <AppButton
+            label={notesOpen ? "Hide notes" : "Notes"}
+            small
+            variant="outline"
+            icon={<StickyNote size={13} color={task.notes ? tokens.accent : tokens.text} />}
+            onPress={() => setNotesOpen((open) => !open)}
+          />
+          <AppButton
+            label="Edit"
+            small
+            variant="outline"
+            icon={<Pencil size={13} color={tokens.text} />}
+            onPress={() => setEditing(true)}
+          />
+          <AppButton
+            label="Delete"
+            small
+            variant="danger"
+            icon={<Trash2 size={13} color={tokens.danger} />}
+            onPress={() => deleteTask(task.id)}
+          />
+        </Row>
+      ) : null}
       {notesOpen ? (
         <AppTextInput
           placeholder="Working notes for this task"

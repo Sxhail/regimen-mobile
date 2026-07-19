@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, View, useWindowDimensions } from "react-n
 
 import { AppText as Text } from "../../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Bell, ChevronLeft, ChevronRight, FileJson, LayoutTemplate, Plus, Repeat, Search } from "lucide-react-native";
+import { Bell, ChevronLeft, ChevronRight, FileJson, LayoutTemplate, Plus, Repeat, Search, X } from "lucide-react-native";
 
 import type { CalendarImportEvent } from "../../model/calendar-import";
 import { getDayKey } from "../../model/defaults";
@@ -59,6 +59,7 @@ export function PlannerScreen() {
   const [blocksOpen, setBlocksOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const gridScrollRef = useRef<ScrollView | null>(null);
   const autoScrolledFor = useRef<string | null>(null);
@@ -534,27 +535,18 @@ export function PlannerScreen() {
           onChange={setViewMode}
         />
 
-        <Row gap={8}>
-          <View style={{ flex: 1 }}>
-            <Row
-              gap={8}
-              style={{
-                borderWidth: 1,
-                borderColor: tokens.border,
-                borderRadius: 999,
-                backgroundColor: tokens.inputBg,
-                paddingHorizontal: 12,
-              }}
-            >
-              <Search size={14} color={tokens.textMuted} />
-              <AppTextInput
-                placeholder="Search events and notes"
-                value={query}
-                onChangeText={setQuery}
-                style={{ flex: 1, borderWidth: 0, backgroundColor: "transparent", paddingHorizontal: 0 }}
-              />
-            </Row>
-          </View>
+        <Row style={{ justifyContent: "flex-end" }} gap={8}>
+          <IconButton
+            onPress={() => setSearchOpen((open) => !open)}
+            accessibilityLabel="Search events"
+            style={
+              searchOpen || query.trim()
+                ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent }
+                : undefined
+            }
+          >
+            <Search size={16} color={searchOpen || query.trim() ? tokens.accent : tokens.textSecondary} />
+          </IconButton>
           <IconButton onPress={() => setImportOpen(true)} accessibilityLabel="Import JSON">
             <FileJson size={16} color={tokens.textSecondary} />
           </IconButton>
@@ -571,6 +563,38 @@ export function PlannerScreen() {
             <Bell size={16} color={tokens.textSecondary} />
           </IconButton>
         </Row>
+
+        {searchOpen ? (
+          <Row
+            gap={8}
+            style={{
+              borderWidth: 1,
+              borderColor: tokens.border,
+              borderRadius: 999,
+              backgroundColor: tokens.inputBg,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Search size={14} color={tokens.textMuted} />
+            <AppTextInput
+              placeholder="Search events and notes"
+              value={query}
+              onChangeText={setQuery}
+              autoFocus
+              style={{ flex: 1, borderWidth: 0, backgroundColor: "transparent", paddingHorizontal: 0 }}
+            />
+            <IconButton
+              onPress={() => {
+                setQuery("");
+                setSearchOpen(false);
+              }}
+              accessibilityLabel="Clear search"
+              style={{ width: 28, height: 28, borderWidth: 0, backgroundColor: "transparent" }}
+            >
+              <X size={14} color={tokens.textMuted} />
+            </IconButton>
+          </Row>
+        ) : null}
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 8 }}>

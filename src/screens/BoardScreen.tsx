@@ -3,7 +3,7 @@ import { ScrollView, View } from "react-native";
 
 import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, ChevronRight, Play, StickyNote } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Play, StickyNote } from "lucide-react-native";
 
 import { formatSeconds } from "../model/time";
 import type { Task, TaskKanbanStatus } from "../model/types";
@@ -25,9 +25,25 @@ function BoardCard({ task }: { task: Task }) {
   const updateTaskNotes = useExecutionStore((store) => store.updateTaskNotes);
   const startTask = useExecutionStore((store) => store.startTask);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const groupTitle = state.taskGroups.find((group) => group.id === task.groupId)?.title ?? "Unknown";
   const status = task.completed ? "done" : task.kanbanStatus;
+
+  // Primary forward move stays visible; the remaining original transition sits
+  // in the overflow row (dir controls the chevron direction).
+  const forward =
+    status === "backlog"
+      ? { label: "Start", to: "in_progress" as TaskKanbanStatus }
+      : status === "in_progress"
+        ? { label: "Done", to: "done" as TaskKanbanStatus }
+        : null;
+  const secondary =
+    status === "backlog"
+      ? { label: "Done", to: "done" as TaskKanbanStatus, dir: "right" as const }
+      : status === "in_progress"
+        ? { label: "Backlog", to: "backlog" as TaskKanbanStatus, dir: "left" as const }
+        : { label: "In progress", to: "in_progress" as TaskKanbanStatus, dir: "left" as const };
 
   return (
     <Card style={{ gap: 10, padding: 14 }}>
@@ -47,52 +63,58 @@ function BoardCard({ task }: { task: Task }) {
           {formatSeconds(task.secondsSpent)}
         </Text>
       </Row>
-      <Row gap={6} style={{ flexWrap: "wrap" }}>
-        {status === "in_progress" ? (
+      <Row style={{ justifyContent: "space-between" }}>
+        {forward ? (
           <AppButton
-            label="Backlog"
-            small
-            variant="outline"
-            icon={<ChevronLeft size={13} color={tokens.text} />}
-            onPress={() => updateTaskKanbanStatus(task.id, "backlog")}
-          />
-        ) : null}
-        {status === "done" ? (
-          <AppButton
-            label="In progress"
-            small
-            variant="outline"
-            icon={<ChevronLeft size={13} color={tokens.text} />}
-            onPress={() => updateTaskKanbanStatus(task.id, "in_progress")}
-          />
-        ) : null}
-        {status === "backlog" ? (
-          <AppButton
-            label="Start"
+            label={forward.label}
             small
             variant="outline"
             icon={<ChevronRight size={13} color={tokens.text} />}
-            onPress={() => updateTaskKanbanStatus(task.id, "in_progress")}
+            onPress={() => updateTaskKanbanStatus(task.id, forward.to)}
           />
-        ) : null}
-        {status !== "done" ? (
-          <AppButton
-            label="Done"
-            small
-            variant="outline"
-            icon={<ChevronRight size={13} color={tokens.text} />}
-            onPress={() => updateTaskKanbanStatus(task.id, "done")}
-          />
-        ) : null}
-        <IconButton onPress={() => setNotesOpen((open) => !open)} accessibilityLabel="Toggle notes">
-          <StickyNote size={13} color={task.notes ? tokens.accent : tokens.textMuted} />
+        ) : (
+          <View />
+        )}
+        <IconButton
+          onPress={() => setMoreOpen((open) => !open)}
+          accessibilityLabel="More actions"
+          style={moreOpen ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent } : undefined}
+        >
+          <MoreHorizontal size={13} color={moreOpen ? tokens.accent : tokens.textMuted} />
         </IconButton>
-        {!task.completed ? (
-          <IconButton onPress={() => startTask(task.id)} accessibilityLabel="Start focus">
-            <Play size={13} color={tokens.accent} />
-          </IconButton>
-        ) : null}
       </Row>
+      {moreOpen ? (
+        <Row gap={6} style={{ flexWrap: "wrap" }}>
+          <AppButton
+            label={secondary.label}
+            small
+            variant="outline"
+            icon={
+              secondary.dir === "left" ? (
+                <ChevronLeft size={13} color={tokens.text} />
+              ) : (
+                <ChevronRight size={13} color={tokens.text} />
+              )
+            }
+            onPress={() => updateTaskKanbanStatus(task.id, secondary.to)}
+          />
+          <AppButton
+            label={notesOpen ? "Hide notes" : "Notes"}
+            small
+            variant="outline"
+            icon={<StickyNote size={13} color={task.notes ? tokens.accent : tokens.text} />}
+            onPress={() => setNotesOpen((open) => !open)}
+          />
+          {!task.completed ? (
+            <AppButton
+              label="Focus"
+              small
+              icon={<Play size={13} color={tokens.onAccent} />}
+              onPress={() => startTask(task.id)}
+            />
+          ) : null}
+        </Row>
+      ) : null}
       {notesOpen ? (
         <AppTextInput
           placeholder="Notes"

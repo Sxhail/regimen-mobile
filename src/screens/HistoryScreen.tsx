@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { AppText as Text } from "../ui/AppText";
-import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react-native";
 
 import { getDayKey } from "../model/defaults";
 import { isSnapshotWon } from "../model/logic";
@@ -14,6 +14,7 @@ import { AppButton, Card, EmptyState, IconButton, MutedLabel, Row, StatTile } fr
 
 function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
   const { tokens } = useTheme();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const won = isSnapshotWon(entry.snapshot);
   const dateLabel = formatDateLabel(dayKeyToDate(entry.dayKey), {
     weekday: "long",
@@ -24,7 +25,9 @@ function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
 
   return (
     <Card style={{ gap: 14 }}>
-      <Text style={{ color: tokens.text, fontSize: 17, fontWeight: "700" }}>{dateLabel}</Text>
+      <Text style={{ color: tokens.text, fontSize: 17, fontWeight: "700" }} numberOfLines={1}>
+        {dateLabel}
+      </Text>
 
       <Row gap={10}>
         <StatTile label="Focus" value={formatSeconds(entry.snapshot.focusSeconds)} />
@@ -43,8 +46,12 @@ function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
           entry.tasks.map((task) => (
             <Row key={task.id} style={{ justifyContent: "space-between" }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: tokens.text, fontSize: 14 }}>{task.title}</Text>
-                <Text style={{ color: tokens.textMuted, fontSize: 12 }}>{task.groupTitle}</Text>
+                <Text style={{ color: tokens.text, fontSize: 14 }} numberOfLines={1}>
+                  {task.title}
+                </Text>
+                <Text style={{ color: tokens.textMuted, fontSize: 12 }} numberOfLines={1}>
+                  {task.groupTitle}
+                </Text>
               </View>
               <Text style={{ color: tokens.textSecondary, fontSize: 12, fontVariant: ["tabular-nums"] }}>
                 {formatSeconds(task.secondsSpent)}
@@ -52,69 +59,6 @@ function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
             </Row>
           ))
         )}
-      </View>
-
-      <View style={{ gap: 6 }}>
-        <MutedLabel>Habits</MutedLabel>
-        {entry.habits.map((habit) => (
-          <Row key={habit.id} style={{ justifyContent: "space-between" }}>
-            <Text style={{ color: tokens.text, fontSize: 14, flex: 1 }}>{habit.label}</Text>
-            <Text style={{ color: habit.checked ? tokens.success : tokens.textMuted, fontSize: 12, fontWeight: "600" }}>
-              {habit.checked ? "Done" : "Not done"}
-            </Text>
-          </Row>
-        ))}
-      </View>
-
-      {entry.metrics.length > 0 ? (
-        <View style={{ gap: 6 }}>
-          <MutedLabel>Custom inputs</MutedLabel>
-          {entry.metrics.map((metric) => (
-            <Row key={metric.id} style={{ justifyContent: "space-between" }}>
-              <Text style={{ color: tokens.text, fontSize: 14, flex: 1 }}>{metric.label}</Text>
-              <Text style={{ color: tokens.textSecondary, fontSize: 12 }}>
-                {metric.value || "—"}
-                {metric.target ? ` / ${metric.target}` : ""}
-              </Text>
-            </Row>
-          ))}
-        </View>
-      ) : null}
-
-      {entry.hardestTask ? (
-        <View style={{ gap: 4 }}>
-          <MutedLabel>Hardest task</MutedLabel>
-          <Text style={{ color: tokens.text, fontSize: 14 }}>{entry.hardestTask}</Text>
-        </View>
-      ) : null}
-
-      {entry.firstStep ? (
-        <View style={{ gap: 4 }}>
-          <MutedLabel>First step</MutedLabel>
-          <Text style={{ color: tokens.text, fontSize: 14 }}>{entry.firstStep}</Text>
-        </View>
-      ) : null}
-
-      <View style={{ gap: 6 }}>
-        <MutedLabel>Goals snapshot</MutedLabel>
-        {([
-          { label: "Yearly", bucket: "vision" as const },
-          { label: "This Month", bucket: "month" as const },
-          { label: "This Week", bucket: "today" as const },
-        ]).map(({ label, bucket }) => (
-          <View key={bucket} style={{ gap: 2 }}>
-            <Text style={{ color: tokens.textMuted, fontSize: 12, fontWeight: "600" }}>{label}</Text>
-            {entry.goals[bucket].length === 0 ? (
-              <Text style={{ color: tokens.textMuted, fontSize: 13 }}>—</Text>
-            ) : (
-              entry.goals[bucket].map((goal) => (
-                <Text key={goal.id} style={{ color: tokens.text, fontSize: 13 }}>
-                  · {goal.title}
-                </Text>
-              ))
-            )}
-          </View>
-        ))}
       </View>
 
       {entry.journal ? (
@@ -129,6 +73,98 @@ function HistoryEntryCard({ entry }: { entry: DailyHistoryEntry }) {
           <MutedLabel>Monthly journal</MutedLabel>
           <Text style={{ color: tokens.textSecondary, fontSize: 14, lineHeight: 20 }}>{entry.monthlyJournal}</Text>
         </View>
+      ) : null}
+
+      <Pressable
+        onPress={() => setDetailsOpen((open) => !open)}
+        hitSlop={6}
+        accessibilityLabel={detailsOpen ? "Hide details" : "Show details"}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderTopWidth: 1,
+          borderTopColor: tokens.border,
+          paddingTop: 12,
+        }}
+      >
+        <MutedLabel>{detailsOpen ? "Hide details" : "Details"}</MutedLabel>
+        {detailsOpen ? (
+          <ChevronUp size={16} color={tokens.textMuted} />
+        ) : (
+          <ChevronDown size={16} color={tokens.textMuted} />
+        )}
+      </Pressable>
+
+      {detailsOpen ? (
+        <>
+          <View style={{ gap: 6 }}>
+            <MutedLabel>Habits</MutedLabel>
+            {entry.habits.map((habit) => (
+              <Row key={habit.id} style={{ justifyContent: "space-between" }}>
+                <Text style={{ color: tokens.text, fontSize: 14, flex: 1 }} numberOfLines={1}>
+                  {habit.label}
+                </Text>
+                <Text style={{ color: habit.checked ? tokens.success : tokens.textMuted, fontSize: 12, fontWeight: "600" }}>
+                  {habit.checked ? "Done" : "Not done"}
+                </Text>
+              </Row>
+            ))}
+          </View>
+
+          {entry.metrics.length > 0 ? (
+            <View style={{ gap: 6 }}>
+              <MutedLabel>Custom inputs</MutedLabel>
+              {entry.metrics.map((metric) => (
+                <Row key={metric.id} style={{ justifyContent: "space-between" }}>
+                  <Text style={{ color: tokens.text, fontSize: 14, flex: 1 }} numberOfLines={1}>
+                    {metric.label}
+                  </Text>
+                  <Text style={{ color: tokens.textSecondary, fontSize: 12 }}>
+                    {metric.value || "—"}
+                    {metric.target ? ` / ${metric.target}` : ""}
+                  </Text>
+                </Row>
+              ))}
+            </View>
+          ) : null}
+
+          {entry.hardestTask ? (
+            <View style={{ gap: 4 }}>
+              <MutedLabel>Hardest task</MutedLabel>
+              <Text style={{ color: tokens.text, fontSize: 14 }}>{entry.hardestTask}</Text>
+            </View>
+          ) : null}
+
+          {entry.firstStep ? (
+            <View style={{ gap: 4 }}>
+              <MutedLabel>First step</MutedLabel>
+              <Text style={{ color: tokens.text, fontSize: 14 }}>{entry.firstStep}</Text>
+            </View>
+          ) : null}
+
+          <View style={{ gap: 6 }}>
+            <MutedLabel>Goals snapshot</MutedLabel>
+            {([
+              { label: "Yearly", bucket: "vision" as const },
+              { label: "This Month", bucket: "month" as const },
+              { label: "This Week", bucket: "today" as const },
+            ]).map(({ label, bucket }) => (
+              <View key={bucket} style={{ gap: 2 }}>
+                <Text style={{ color: tokens.textMuted, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+                {entry.goals[bucket].length === 0 ? (
+                  <Text style={{ color: tokens.textMuted, fontSize: 13 }}>—</Text>
+                ) : (
+                  entry.goals[bucket].map((goal) => (
+                    <Text key={goal.id} style={{ color: tokens.text, fontSize: 13 }}>
+                      · {goal.title}
+                    </Text>
+                  ))
+                )}
+              </View>
+            ))}
+          </View>
+        </>
       ) : null}
     </Card>
   );

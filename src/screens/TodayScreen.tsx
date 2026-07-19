@@ -64,7 +64,7 @@ export function TodayScreen() {
   );
 
   const enabled = (module: DayModuleId) => dayModules.includes(module);
-  const gap = state.compactMode ? 10 : 16;
+  const gap = state.compactMode ? 8 : 12;
 
   return (
     <ScrollView
