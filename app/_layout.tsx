@@ -13,6 +13,7 @@ import { useExecutionStore } from "../src/store/executionStore";
 import { ThemeProvider, useTheme } from "../src/theme/ThemeContext";
 import { LoadingScreen } from "../src/ui/primitives";
 import { FloatingTimer } from "../src/components/FloatingTimer";
+import { StandbyTimer } from "../src/components/StandbyTimer";
 
 // Hold the native splash until fonts + persisted state are ready AND at least
 // MIN_SPLASH_MS have passed since launch.
@@ -87,6 +88,7 @@ function RootStack() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
       <FloatingTimer />
+      <StandbyTimer />
     </>
   );
 }
