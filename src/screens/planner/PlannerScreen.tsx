@@ -262,8 +262,10 @@ export function PlannerScreen() {
   const renderTimeGrid = (dates: Date[]) => {
     const nowDate = new Date(now);
     const nowTop = ((nowDate.getHours() * 60 + nowDate.getMinutes()) / 60) * HOUR_HEIGHT;
-    const gutter = 46;
-    const columnWidth = (width - 36 - gutter) / dates.length;
+    // Full-bleed grid: hour gutter hugs the left screen edge, day columns fill
+    // the remaining width exactly so nothing is cut off on the right.
+    const gutter = 44;
+    const columnWidth = (width - gutter) / dates.length;
 
     return (
       <View style={{ flex: 1 }}>
@@ -366,7 +368,7 @@ export function PlannerScreen() {
 
   const renderMonthView = () => {
     const gridDates = getMonthGridDates(cursorDate.getFullYear(), cursorDate.getMonth());
-    const cellWidth = (width - 36) / 7;
+    const cellWidth = width / 7;
 
     return (
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -461,7 +463,7 @@ export function PlannerScreen() {
     }
 
     return (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 140 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 140, paddingHorizontal: 18 }}>
         {days.length === 0 ? (
           <EmptyState message="No events match the current filters." />
         ) : (
@@ -611,7 +613,9 @@ export function PlannerScreen() {
         ) : null}
       </View>
 
-      <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 8 }}>
+      {/* Grids are full-bleed (no horizontal padding) so the calendar uses the
+          whole screen width; agenda keeps its own padding. */}
+      <View style={{ flex: 1, paddingTop: 8 }}>
         {viewMode === "month" ? renderMonthView() : null}
         {viewMode === "week" ? renderTimeGrid(weekDates) : null}
         {viewMode === "day" ? renderTimeGrid([cursorDate]) : null}
