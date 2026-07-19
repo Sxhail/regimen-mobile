@@ -49,6 +49,18 @@ function RootStack() {
     return () => clearTimeout(timeout);
   }, [ready]);
 
+  // Don't mount the app tree until custom fonts are registered: text mounted
+  // earlier is measured with the system-font fallback and never re-laid-out,
+  // which clips the last letter and leaves stale system-font titles.
+  if (!ready) {
+    return (
+      <>
+        <StatusBar style={tokens.scheme === "dark" ? "light" : "dark"} />
+        <LoadingScreen />
+      </>
+    );
+  }
+
   return (
     <>
       <StatusBar style={tokens.scheme === "dark" ? "light" : "dark"} />
@@ -75,7 +87,6 @@ function RootStack() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
       <FloatingTimer />
-      {!hydrated || !fontsLoaded ? <LoadingScreen /> : null}
     </>
   );
 }
