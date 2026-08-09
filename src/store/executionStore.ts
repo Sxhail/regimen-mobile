@@ -44,6 +44,7 @@ type ExecutionStore = {
   dayModules: DayModuleId[];
 
   hydrate: () => Promise<void>;
+  replaceStateFromCloud: (state: AppState, dayModules?: DayModuleId[]) => void;
   setNow: (timestamp: number) => void;
   checkDayRollover: () => void;
   maybeAdvancePomodoro: () => void;
@@ -157,6 +158,24 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => {
       } catch {
         set({ state: createInitialState(), hydrated: true, now: Date.now() });
       }
+    },
+
+    replaceStateFromCloud: (cloudState, cloudDayModules) => {
+      const todayKey = getDayKey();
+      const normalizedCloudState = {
+        ...cloudState,
+        pomodoroConfig: normalizePomodoroConfig(cloudState.pomodoroConfig),
+      };
+      const nextState = normalizedCloudState.currentDayKey !== todayKey
+        ? archiveDay(normalizedCloudState, todayKey)
+        : normalizedCloudState;
+
+      set({
+        state: nextState,
+        dayModules: cloudDayModules ?? get().dayModules,
+        hydrated: true,
+        now: Date.now(),
+      });
     },
 
     setNow: (timestamp) => set({ now: timestamp }),

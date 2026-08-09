@@ -1,0 +1,288 @@
+
+
+===== PACKAGE.JSON =====
+
+{
+  "name": "regimen-mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/lora": "^0.4.2",
+    "@expo-google-fonts/space-mono": "^0.4.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.112.2",
+    "expo": "~57.0.4",
+    "expo-constants": "~57.0.3",
+    "expo-document-picker": "~57.0.0",
+    "expo-file-system": "~57.0.0",
+    "expo-font": "~57.0.1",
+    "expo-haptics": "~57.0.0",
+    "expo-keep-awake": "~57.0.1",
+    "expo-linking": "~57.0.2",
+    "expo-notifications": "~57.0.3",
+    "expo-router": "~57.0.4",
+    "expo-screen-orientation": "~57.0.1",
+    "expo-splash-screen": "~57.0.4",
+    "expo-sqlite": "~57.0.1",
+    "expo-status-bar": "~57.0.0",
+    "expo-updates": "~57.0.12",
+    "lucide-react-native": "^1.24.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4",
+    "react-native-url-polyfill": "^4.0.0",
+    "react-native-worklets": "0.10.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}
+
+
+===== APP CONFIG =====
+
+{
+  "expo": {
+    "name": "REGIMEN",
+    "slug": "regimen-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "executionos",
+    "userInterfaceStyle": "automatic",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.baazjameel.executionos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-sqlite",
+      "expo-font"
+    ],
+    "owner": "sxhail",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8a3902ee-06df-41e1-a198-9b78793e5b5c"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8a3902ee-06df-41e1-a198-9b78793e5b5c"
+    }
+  }
+}
+
+
+===== ENV EXAMPLE =====
+
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-or-anon-key
+
+
+===== TOP LEVEL STRUCTURE =====
+
+
+Name   
+----   
+.claude
+app    
+assets 
+docs   
+src    
+
+
+
+
+
+===== IMPORTANT FILE TREE =====
+
+
+FullName                                               
+--------                                               
+C:\Users\suhai\regimen-mobile\app.json                 
+C:\Users\suhai\regimen-mobile\eas.json                 
+C:\Users\suhai\regimen-mobile\expo-env.d.ts            
+C:\Users\suhai\regimen-mobile\package-lock.json        
+C:\Users\suhai\regimen-mobile\package.json             
+C:\Users\suhai\regimen-mobile\tsconfig.json            
+C:\Users\suhai\regimen-mobile\.claude\settings.json    
+C:\Users\suhai\regimen-mobile\app\auth.tsx             
+C:\Users\suhai\regimen-mobile\app\board.tsx            
+C:\Users\suhai\regimen-mobile\app\goals.tsx            
+C:\Users\suhai\regimen-mobile\app\history.tsx          
+C:\Users\suhai\regimen-mobile\app\journal.tsx          
+C:\Users\suhai\regimen-mobile\app\life.tsx             
+C:\Users\suhai\regimen-mobile\app\settings.tsx         
+C:\Users\suhai\regimen-mobile\app\_layout.tsx          
+C:\Users\suhai\regimen-mobile\app\(tabs)\index.tsx     
+C:\Users\suhai\regimen-mobile\app\(tabs)\more.tsx      
+C:\Users\suhai\regimen-mobile\app\(tabs)\planner.tsx   
+C:\Users\suhai\regimen-mobile\app\(tabs)\stats.tsx     
+C:\Users\suhai\regimen-mobile\app\(tabs)\tasks.tsx     
+C:\Users\suhai\regimen-mobile\app\(tabs)\_layout.tsx   
+C:\Users\suhai\regimen-mobile\src\auth\AuthProvider.tsx
+C:\Users\suhai\regimen-mobile\src\components\Floatin...
+C:\Users\suhai\regimen-mobile\src\components\ScreenH...
+C:\Users\suhai\regimen-mobile\src\components\Standby...
+C:\Users\suhai\regimen-mobile\src\lib\supabase.ts      
+C:\Users\suhai\regimen-mobile\src\model\calendar-imp...
+C:\Users\suhai\regimen-mobile\src\model\db.ts          
+C:\Users\suhai\regimen-mobile\src\model\defaults.ts    
+C:\Users\suhai\regimen-mobile\src\model\logic.ts       
+C:\Users\suhai\regimen-mobile\src\model\storage.ts     
+C:\Users\suhai\regimen-mobile\src\model\time.ts        
+C:\Users\suhai\regimen-mobile\src\model\types.ts       
+C:\Users\suhai\regimen-mobile\src\runtime\ExecutionR...
+C:\Users\suhai\regimen-mobile\src\runtime\notificati...
+C:\Users\suhai\regimen-mobile\src\screens\BoardScree...
+C:\Users\suhai\regimen-mobile\src\screens\GoalsScree...
+C:\Users\suhai\regimen-mobile\src\screens\HistoryScr...
+C:\Users\suhai\regimen-mobile\src\screens\JournalScr...
+C:\Users\suhai\regimen-mobile\src\screens\LifeScreen...
+C:\Users\suhai\regimen-mobile\src\screens\MoreScreen...
+C:\Users\suhai\regimen-mobile\src\screens\SettingsSc...
+C:\Users\suhai\regimen-mobile\src\screens\StatsScree...
+C:\Users\suhai\regimen-mobile\src\screens\TasksScree...
+C:\Users\suhai\regimen-mobile\src\screens\TodayScree...
+C:\Users\suhai\regimen-mobile\src\screens\planner\Pl...
+C:\Users\suhai\regimen-mobile\src\screens\planner\Pl...
+C:\Users\suhai\regimen-mobile\src\screens\planner\pl...
+C:\Users\suhai\regimen-mobile\src\store\derived.ts     
+C:\Users\suhai\regimen-mobile\src\store\executionSto...
+C:\Users\suhai\regimen-mobile\src\sync\cloudState.ts   
+C:\Users\suhai\regimen-mobile\src\sync\SupabaseSyncB...
+C:\Users\suhai\regimen-mobile\src\theme\ThemeContext...
+C:\Users\suhai\regimen-mobile\src\theme\tokens.ts      
+C:\Users\suhai\regimen-mobile\src\ui\AppText.tsx       
+C:\Users\suhai\regimen-mobile\src\ui\primitives.tsx    
+
+
+
+
+
+===== DATABASE / SQLITE / STORAGE REFERENCES =====
+
+
+
+===== DOMAIN / MODEL / TYPE REFERENCES =====
+
+C:\Users\suhai\regimen-mobile\app\auth.tsx:6: import { useTheme } from "../src/theme/ThemeContext";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:10: type AuthMode = "sign-in" | "sign-up";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:13: const { tokens } = useTheme();
+C:\Users\suhai\regimen-mobile\app\auth.tsx:15: const [mode, setMode] = useState<AuthMode>("sign-in");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:16: const [email, setEmail] = useState("");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:17: const [password, setPassword] = useState("");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:18: const [busy, setBusy] = useState(false);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:19: const [message, setMessage] = useState<string | null>(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:20: const [error, setError] = useState<string | null>(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:23: setError(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:24: setMessage(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:28: setError("Enter an email and a password with at least 6 characters.");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:32: setBusy(true);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:38: setMessage(result.needsEmailConfirmation ? "Check your email to confirm your account." : "Account created.");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:41: setError(nextError instanceof Error ? nextError.message : "Authentication failed.");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:43: setBusy(false);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:63: setMode(value);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:64: setError(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:65: setMessage(null);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:84: onChangeText={setEmail}
+C:\Users\suhai\regimen-mobile\app\auth.tsx:93: onChangeText={setPassword}
+C:\Users\suhai\regimen-mobile\app\settings.tsx:1: export { SettingsScreen as default } from "../src/screens/SettingsScreen";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:13: import { ThemeProvider, useTheme } from "../src/theme/ThemeContext";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:25: const { tokens } = useTheme();
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:47: const timeout = setTimeout(() => {
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:72: // Native header titles must follow the app font setting too. With a
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:88: <Stack.Screen name="settings" options={{ title: "Settings" }} />
+
+
+===== SUPABASE / AUTH / SYNC REFERENCES =====
+
+C:\Users\suhai\regimen-mobile\app\auth.tsx:1: import React, { useState } from "react";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:2: import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:3: import { LogIn, UserPlus } from "lucide-react-native";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:5: import { useAuth } from "../src/auth/AuthProvider";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:6: import { useTheme } from "../src/theme/ThemeContext";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:7: import { AppText as Text } from "../src/ui/AppText";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:8: import { AppButton, AppTextInput, Card, MutedLabel, SegmentedControl, Subtitle, Title } from "../src/ui/primitives";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:10: type AuthMode = "sign-in" | "sign-up";
+C:\Users\suhai\regimen-mobile\app\auth.tsx:12: export default function AuthScreen() {
+C:\Users\suhai\regimen-mobile\app\auth.tsx:14: const { isConfigured, signInWithPassword, signUpWithPassword } = useAuth();
+C:\Users\suhai\regimen-mobile\app\auth.tsx:15: const [mode, setMode] = useState<AuthMode>("sign-in");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:22: const submit = async () => {
+C:\Users\suhai\regimen-mobile\app\auth.tsx:35: await signInWithPassword(trimmedEmail, password);
+C:\Users\suhai\regimen-mobile\app\auth.tsx:41: setError(nextError instanceof Error ? nextError.message : "Authentication failed.");
+C:\Users\suhai\regimen-mobile\app\auth.tsx:55: <Title>Sync your system</Title>
+C:\Users\suhai\regimen-mobile\app\auth.tsx:56: <Subtitle>Sign in to connect this device to the same Supabase data used by the web app.</Subtitle>
+C:\Users\suhai\regimen-mobile\app\auth.tsx:60: <SegmentedControl<AuthMode>
+C:\Users\suhai\regimen-mobile\app\auth.tsx:75: <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "700" }}>Supabase is not configured yet.</Text>
+C:\Users\suhai\regimen-mobile\app\auth.tsx:77: Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local, then restart Expo.
+C:\Users\suhai\regimen-mobile\app\board.tsx:1: export { BoardScreen as default } from "../src/screens/BoardScreen";
+C:\Users\suhai\regimen-mobile\app\goals.tsx:1: export { GoalsScreen as default } from "../src/screens/GoalsScreen";
+C:\Users\suhai\regimen-mobile\app\history.tsx:1: export { HistoryScreen as default } from "../src/screens/HistoryScreen";
+C:\Users\suhai\regimen-mobile\app\journal.tsx:1: export { JournalScreen as default } from "../src/screens/JournalScreen";
+C:\Users\suhai\regimen-mobile\app\life.tsx:1: export { LifeScreen as default } from "../src/screens/LifeScreen";
+C:\Users\suhai\regimen-mobile\app\settings.tsx:1: export { SettingsScreen as default } from "../src/screens/SettingsScreen";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:1: import React, { useEffect } from "react";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:2: import { GestureHandlerRootView } from "react-native-gesture-handler";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:3: import { Stack } from "expo-router";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:4: import { StatusBar } from "expo-status-bar";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:5: import * as SplashScreen from "expo-splash-screen";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:6: import { useFonts } from "expo-font";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:7: import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:8: import { Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_700Bold } from "@expo-google-fonts/lora";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:9: import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:11: import { ExecutionRuntime } from "../src/runtime/ExecutionRuntime";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:12: import { useExecutionStore } from "../src/store/executionStore";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:13: import { ThemeProvider, useTheme } from "../src/theme/ThemeContext";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:14: import { LoadingScreen } from "../src/ui/primitives";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:15: import { FloatingTimer } from "../src/components/FloatingTimer";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:16: import { StandbyTimer } from "../src/components/StandbyTimer";
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:20: SplashScreen.preventAutoHideAsync().catch(() => {});
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:48: SplashScreen.hideAsync().catch(() => {});
+C:\Users\suhai\regimen-mobile\app\_layout.tsx:96: export default function RootLayout() {

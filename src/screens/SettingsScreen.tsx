@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { useRouter, type Href } from "expo-router";
 
 import { AppText as Text } from "../ui/AppText";
-import { Trash2 } from "lucide-react-native";
+import { LogIn, LogOut, Trash2 } from "lucide-react-native";
 
+import { useAuth } from "../auth/AuthProvider";
 import type { AccentKey, FontStyleId, MetricType, ThemeMode } from "../model/types";
 import { useAppState } from "../store/derived";
 import { useExecutionStore } from "../store/executionStore";
@@ -15,6 +17,8 @@ const ACCENTS: AccentKey[] = ["indigo", "blue", "violet"];
 
 export function SettingsScreen() {
   const { tokens } = useTheme();
+  const router = useRouter();
+  const { isConfigured, loading: authLoading, user, signOut } = useAuth();
   const state = useAppState();
   const setThemeMode = useExecutionStore((store) => store.setThemeMode);
   const setFontStyle = useExecutionStore((store) => store.setFontStyle);
@@ -27,6 +31,20 @@ export function SettingsScreen() {
 
   const [metricLabel, setMetricLabel] = useState("");
   const [metricType, setMetricType] = useState<MetricType>("time");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      await signOut();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Sign out failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -34,6 +52,44 @@ export function SettingsScreen() {
       contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
       keyboardShouldPersistTaps="handled"
     >
+      <Card style={{ gap: 14 }}>
+        <MutedLabel>Account</MutedLabel>
+        {isConfigured ? (
+          user ? (
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 3 }}>
+                <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "700" }}>{user.email ?? "Signed in"}</Text>
+                <Text style={{ color: tokens.textMuted, fontSize: 12 }}>Syncing with Regimen Web through Supabase.</Text>
+              </View>
+              {authError ? <Text style={{ color: tokens.danger, fontSize: 13 }}>{authError}</Text> : null}
+              <AppButton
+                label="Sign out"
+                variant="outline"
+                disabled={authBusy || authLoading}
+                onPress={handleSignOut}
+                icon={<LogOut size={16} color={tokens.text} />}
+              />
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: tokens.textSecondary, fontSize: 13, lineHeight: 19 }}>
+                Sign in with the same account you use on Regimen Web.
+              </Text>
+              <AppButton
+                label="Sign in"
+                disabled={authLoading}
+                onPress={() => router.push("/auth" as Href)}
+                icon={<LogIn size={16} color={tokens.onAccent} />}
+              />
+            </View>
+          )
+        ) : (
+          <Text style={{ color: tokens.textSecondary, fontSize: 13, lineHeight: 19 }}>
+            Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local, then restart Expo.
+          </Text>
+        )}
+      </Card>
+
       <Card style={{ gap: 14 }}>
         <MutedLabel>Appearance</MutedLabel>
 

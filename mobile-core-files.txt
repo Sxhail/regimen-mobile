@@ -1,0 +1,4307 @@
+
+
+===== .\src\model\types.ts =====
+
+export type MetricType = "time" | "number" | "text";
+export type GoalBucketKey = "vision" | "month" | "today";
+export type AccentKey = "indigo" | "blue" | "violet";
+export type ThemeMode = "system" | "light" | "dark";
+export type FontStyleId = "system" | "inter" | "lora" | "mono";
+export type TimerMode = "free" | "pomodoro";
+export type PomodoroPhase = "focus" | "break";
+export type CalendarColorKey = "sage" | "mint" | "amber" | "rose" | "sky" | "violet";
+export type CalendarRepeat = "none" | "daily" | "weekly" | "monthly" | "yearly";
+
+export type PomodoroConfig = {
+  workMinutes: number;
+  breakMinutes: number;
+  rounds: number;
+};
+
+export type TimerAlert = {
+  id: number;
+  title: string;
+  message: string;
+};
+
+export type TaskKanbanStatus = "backlog" | "in_progress" | "done";
+
+export type Task = {
+  id: string;
+  groupId: string;
+  title: string;
+  completed: boolean;
+  completedDayKey: string | null;
+  secondsSpent: number;
+  notes: string;
+  kanbanStatus: TaskKanbanStatus;
+};
+
+export type DailyHistoryTask = {
+  id: string;
+  groupId: string;
+  groupTitle: string;
+  title: string;
+  secondsSpent: number;
+  completedDayKey: string | null;
+};
+
+export type TaskGroup = {
+  id: string;
+  title: string;
+};
+
+export type Habit = {
+  id: string;
+  label: string;
+  checked: boolean;
+};
+
+export type PromptSet = {
+  daily: string[];
+  monthly: string[];
+};
+
+export type MetricField = {
+  id: string;
+  label: string;
+  type: MetricType;
+  value: string;
+  target: string;
+};
+
+export type GoalItem = {
+  id: string;
+  title: string;
+  note: string;
+};
+
+export type GoalDraft = {
+  title: string;
+  note: string;
+};
+
+export type FocusSession = {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  durationSeconds: number;
+  startedAt: number;
+  endedAt: number;
+};
+
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  startDayKey: string;
+  endDayKey: string;
+  startTime: string;
+  endTime: string;
+  color: CalendarColorKey;
+  notes: string;
+  reminderMinutes: number | null;
+  repeat: CalendarRepeat;
+  repeatEndDayKey: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type CalendarBlock = {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  color: CalendarColorKey;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type DailySnapshot = {
+  dayKey: string;
+  focusSeconds: number;
+  completedTasks: number;
+  completedHabits: number;
+  totalHabits: number;
+  // Legacy fields kept optional for backward compatibility with persisted snapshots.
+  startedBeforePhone?: boolean;
+  avoidedScrollingBeforeWork?: boolean;
+};
+
+export type DailyHistoryEntry = {
+  dayKey: string;
+  capturedAt: number;
+  hardestTask: string;
+  firstStep: string;
+  journal: string;
+  monthlyJournal: string;
+  tasks: DailyHistoryTask[];
+  habits: Habit[];
+  metrics: MetricField[];
+  goals: Record<GoalBucketKey, GoalItem[]>;
+  snapshot: DailySnapshot;
+};
+
+export type AppState = {
+  hardestTask: string;
+  firstStep: string;
+  taskGroups: TaskGroup[];
+  tasks: Task[];
+  habits: Habit[];
+  journal: string;
+  monthlyJournal: string;
+  prompts: PromptSet;
+  metrics: MetricField[];
+  goals: Record<GoalBucketKey, GoalItem[]>;
+  goalDrafts: Record<GoalBucketKey, GoalDraft>;
+  activeTaskId: string | null;
+  activeCalendarEventId: string | null;
+  isRunning: boolean;
+  runningSince: number | null;
+  sessionSeconds: number;
+  todayFocusSeconds: number;
+  timerMode: TimerMode;
+  timerTotalSeconds: number;
+  timerAlert: TimerAlert | null;
+  pomodoroPhase: PomodoroPhase;
+  pomodoroCompletedFocusBlocks: number;
+  pomodoroConfig: PomodoroConfig;
+  compactMode: boolean;
+  showFloatingTimer: boolean;
+  timerExpanded: boolean;
+  accent: AccentKey;
+  themeMode: ThemeMode;
+  fontStyle: FontStyleId;
+  focusSessions: FocusSession[];
+  calendarEvents: CalendarEvent[];
+  calendarBlocks: CalendarBlock[];
+  dailySnapshots: Record<string, DailySnapshot>;
+  dailyHistory: Record<string, DailyHistoryEntry>;
+  currentDayKey: string;
+};
+
+export type WeeklyPoint = {
+  day: string;
+  focus: number;
+  won: boolean;
+};
+
+
+===== .\src\model\db.ts =====
+
+import * as SQLite from "expo-sqlite";
+
+const DB_NAME = "regimen.db";
+
+// Serialize opens so concurrent callers share a single open promise (and a
+// single CREATE TABLE). Subsequent calls reuse the resolved database handle.
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const db = await SQLite.openDatabaseAsync(DB_NAME);
+      await db.execAsync(
+        "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)",
+      );
+      return db;
+    })();
+
+    // If the open fails, clear the cached promise so the next call retries.
+    dbPromise.catch(() => {
+      dbPromise = null;
+    });
+  }
+
+  return dbPromise;
+}
+
+export async function kvGet(key: string): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM kv WHERE key = ?",
+    key,
+  );
+  return row ? row.value : null;
+}
+
+export async function kvSet(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    key,
+    value,
+  );
+}
+
+
+===== .\src\model\storage.ts =====
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { kvGet, kvSet } from "./db";
+import { createInitialState } from "./defaults";
+import type { AppState, CalendarBlock, CalendarColorKey, CalendarEvent, CalendarRepeat, DailyHistoryEntry, DailySnapshot, FontStyleId, Task, TaskGroup, TaskKanbanStatus, ThemeMode } from "./types";
+
+export const STORAGE_KEY = "execution-os-state:v1";
+export const DAY_MODULES_KEY = "execution-os-day-modules:v1";
+
+function normalizeTaskKanbanStatus(value: unknown, completed: boolean): TaskKanbanStatus {
+  if (value === "backlog" || value === "in_progress" || value === "done") {
+    return value;
+  }
+
+  return completed ? "done" : "backlog";
+}
+
+function normalizeCalendarColor(value: unknown): CalendarColorKey {
+  if (value === "sage" || value === "mint" || value === "amber" || value === "rose" || value === "sky" || value === "violet") {
+    return value;
+  }
+
+  return "sage";
+}
+
+function normalizeCalendarRepeat(value: unknown): CalendarRepeat {
+  if (value === "daily" || value === "weekly" || value === "monthly" || value === "yearly") {
+    return value;
+  }
+
+  return "none";
+}
+
+function normalizeThemeMode(value: unknown): ThemeMode {
+  if (value === "light" || value === "dark" || value === "system") {
+    return value;
+  }
+
+  return "system";
+}
+
+function normalizeFontStyle(value: unknown): FontStyleId {
+  if (value === "system" || value === "inter" || value === "lora" || value === "mono") {
+    return value;
+  }
+
+  return "system";
+}
+
+function isDayKey(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isTimeValue(value: unknown): value is string {
+  return typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stripLegacyPersistedState(raw: Record<string, unknown>) {
+  const { taskNotes: _legacy, ...rest } = raw;
+  return rest;
+}
+
+function normalizeTaskData(parsed: Partial<AppState>, fallback: AppState) {
+  const parsedGroups = Array.isArray(parsed.taskGroups) ? parsed.taskGroups : fallback.taskGroups;
+  const parsedTasks = Array.isArray(parsed.tasks) ? parsed.tasks : fallback.tasks;
+
+  const hasUngroupedTasks = parsedTasks.some((task) => !("groupId" in task) || !task.groupId);
+  const defaultGroupId = parsedGroups[0]?.id ?? "group-general";
+  const taskGroups: TaskGroup[] = hasUngroupedTasks && parsedGroups.length === 0 ? [{ id: defaultGroupId, title: "General" }] : parsedGroups;
+  const tasks: Task[] = parsedTasks
+    .filter((task) => task !== null && typeof task === "object" && !Array.isArray(task))
+    .map((task) => {
+      const rawTask = task as Partial<Task> & Record<string, unknown>;
+      const completed = Boolean(rawTask.completed);
+      const next: Task = {
+        id: typeof rawTask.id === "string" ? rawTask.id : `task-${Math.random().toString(36).slice(2, 10)}`,
+        title: typeof rawTask.title === "string" ? rawTask.title : "Untitled task",
+        completed,
+        groupId: typeof rawTask.groupId === "string" ? rawTask.groupId : defaultGroupId,
+        completedDayKey: rawTask.completedDayKey === null || typeof rawTask.completedDayKey === "string" ? (rawTask.completedDayKey ?? null) : null,
+        secondsSpent: typeof rawTask.secondsSpent === "number" && Number.isFinite(rawTask.secondsSpent) ? rawTask.secondsSpent : 0,
+        notes: typeof rawTask.notes === "string" ? rawTask.notes : "",
+        kanbanStatus: normalizeTaskKanbanStatus(rawTask.kanbanStatus, completed),
+      };
+      return next;
+    });
+
+  return { taskGroups, tasks };
+}
+
+function normalizeCalendarEvents(parsed: Partial<AppState>, fallback: AppState): CalendarEvent[] {
+  if (!Array.isArray(parsed.calendarEvents)) {
+    return fallback.calendarEvents;
+  }
+
+  return parsed.calendarEvents
+    .filter((event) => isPlainObject(event))
+    .map((event) => {
+      const rawEvent = event as Partial<CalendarEvent> & Record<string, unknown>;
+      const startDayKey = isDayKey(rawEvent.startDayKey) ? rawEvent.startDayKey : fallback.currentDayKey;
+      const endDayKey = isDayKey(rawEvent.endDayKey) ? rawEvent.endDayKey : startDayKey;
+      const createdAt = typeof rawEvent.createdAt === "number" && Number.isFinite(rawEvent.createdAt) ? rawEvent.createdAt : Date.now();
+      const updatedAt = typeof rawEvent.updatedAt === "number" && Number.isFinite(rawEvent.updatedAt) ? rawEvent.updatedAt : createdAt;
+
+      return {
+        id: typeof rawEvent.id === "string" ? rawEvent.id : `event-${Math.random().toString(36).slice(2, 10)}`,
+        title: typeof rawEvent.title === "string" && rawEvent.title.trim() ? rawEvent.title : "Untitled event",
+        startDayKey,
+        endDayKey,
+        startTime: isTimeValue(rawEvent.startTime) ? rawEvent.startTime : "09:00",
+        endTime: isTimeValue(rawEvent.endTime) ? rawEvent.endTime : "10:00",
+        color: normalizeCalendarColor(rawEvent.color),
+        notes: typeof rawEvent.notes === "string" ? rawEvent.notes : "",
+        reminderMinutes: typeof rawEvent.reminderMinutes === "number" && Number.isFinite(rawEvent.reminderMinutes) ? rawEvent.reminderMinutes : null,
+        repeat: normalizeCalendarRepeat(rawEvent.repeat),
+        repeatEndDayKey: isDayKey(rawEvent.repeatEndDayKey) ? rawEvent.repeatEndDayKey : null,
+        createdAt,
+        updatedAt,
+      };
+    });
+}
+
+function normalizeCalendarBlocks(parsed: Partial<AppState>, fallback: AppState): CalendarBlock[] {
+  if (!Array.isArray(parsed.calendarBlocks)) {
+    return fallback.calendarBlocks;
+  }
+
+  return parsed.calendarBlocks
+    .filter((block) => isPlainObject(block))
+    .map((block) => {
+      const rawBlock = block as Partial<CalendarBlock> & Record<string, unknown>;
+      const createdAt = typeof rawBlock.createdAt === "number" && Number.isFinite(rawBlock.createdAt) ? rawBlock.createdAt : Date.now();
+      const updatedAt = typeof rawBlock.updatedAt === "number" && Number.isFinite(rawBlock.updatedAt) ? rawBlock.updatedAt : createdAt;
+
+      return {
+        id: typeof rawBlock.id === "string" ? rawBlock.id : `block-${Math.random().toString(36).slice(2, 10)}`,
+        title: typeof rawBlock.title === "string" && rawBlock.title.trim() ? rawBlock.title : "Untitled block",
+        durationMinutes: typeof rawBlock.durationMinutes === "number" && Number.isFinite(rawBlock.durationMinutes)
+          ? Math.max(15, Math.min(480, Math.floor(rawBlock.durationMinutes)))
+          : 60,
+        color: normalizeCalendarColor(rawBlock.color),
+        notes: typeof rawBlock.notes === "string" ? rawBlock.notes : "",
+        createdAt,
+        updatedAt,
+      };
+    });
+}
+
+function normalizeDailySnapshots(parsed: Partial<AppState>, fallback: AppState): AppState["dailySnapshots"] {
+  if (!isPlainObject(parsed.dailySnapshots)) {
+    return fallback.dailySnapshots;
+  }
+
+  const toFiniteNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+  const entries = Object.entries(parsed.dailySnapshots)
+    .filter(([, snapshot]) => isPlainObject(snapshot))
+    .map(([dayKey, snapshot]) => {
+      const s = snapshot as Record<string, unknown>;
+      const normalized: DailySnapshot = {
+        dayKey: typeof s.dayKey === "string" ? s.dayKey : dayKey,
+        focusSeconds: toFiniteNumber(s.focusSeconds),
+        completedTasks: toFiniteNumber(s.completedTasks),
+        completedHabits: toFiniteNumber(s.completedHabits),
+        totalHabits: toFiniteNumber(s.totalHabits),
+      };
+      return [dayKey, normalized] as const;
+    });
+
+  return Object.fromEntries(entries);
+}
+
+function normalizeDailyHistory(parsed: Partial<AppState>, fallback: AppState) {
+  const raw = parsed.dailyHistory;
+  if (!isPlainObject(raw)) {
+    return fallback.dailyHistory;
+  }
+
+  const entries = Object.entries(raw)
+    .filter(([, entry]) => isPlainObject(entry))
+    .map(([dayKey, entry]) => {
+      const e = entry as Record<string, unknown>;
+      const merged = { ...e, tasks: Array.isArray(e.tasks) ? e.tasks : [] } as DailyHistoryEntry;
+      return [dayKey, merged] as const;
+    });
+
+  return Object.fromEntries(entries) as AppState["dailyHistory"];
+}
+
+export function normalizeStoredState(rawValue: string | null): AppState {
+  const fallback = createInitialState();
+
+  if (!rawValue) {
+    return fallback;
+  }
+
+  try {
+    const rawParsed: unknown = JSON.parse(rawValue);
+    if (!isPlainObject(rawParsed)) {
+      return fallback;
+    }
+
+    const parsed = stripLegacyPersistedState(rawParsed) as Partial<AppState>;
+    const normalizedTaskData = normalizeTaskData(parsed, fallback);
+    const normalizedDailyHistory = normalizeDailyHistory(parsed, fallback);
+    const normalizedPomodoroConfig = {
+      workMinutes: parsed.pomodoroConfig?.workMinutes ?? fallback.pomodoroConfig.workMinutes,
+      breakMinutes: parsed.pomodoroConfig?.breakMinutes ?? fallback.pomodoroConfig.breakMinutes,
+      rounds: parsed.pomodoroConfig?.rounds ?? fallback.pomodoroConfig.rounds,
+    };
+    const dailySnapshots = normalizeDailySnapshots(parsed, fallback);
+    const focusSessions = Array.isArray(parsed.focusSessions) ? parsed.focusSessions : fallback.focusSessions;
+    const calendarEvents = normalizeCalendarEvents(parsed, fallback);
+    const calendarBlocks = normalizeCalendarBlocks(parsed, fallback);
+    const activeCalendarEventId = typeof parsed.activeCalendarEventId === "string" ? parsed.activeCalendarEventId : null;
+    const habits = Array.isArray(parsed.habits) ? parsed.habits : fallback.habits;
+    const metrics = Array.isArray(parsed.metrics) ? parsed.metrics : fallback.metrics;
+
+    return {
+      ...fallback,
+      ...parsed,
+      taskGroups: normalizedTaskData.taskGroups,
+      tasks: normalizedTaskData.tasks,
+      habits,
+      prompts: parsed.prompts ?? fallback.prompts,
+      metrics,
+      goals: parsed.goals ?? fallback.goals,
+      goalDrafts: parsed.goalDrafts ?? fallback.goalDrafts,
+      timerAlert: null,
+      activeCalendarEventId,
+      pomodoroPhase: parsed.pomodoroPhase === "break" ? "break" : "focus",
+      pomodoroConfig: normalizedPomodoroConfig,
+      themeMode: normalizeThemeMode(parsed.themeMode),
+      fontStyle: normalizeFontStyle(parsed.fontStyle),
+      focusSessions,
+      calendarEvents,
+      calendarBlocks,
+      dailySnapshots,
+      dailyHistory: normalizedDailyHistory,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+// Reads a value from the SQLite kv store, falling back to a one-time migration
+// from AsyncStorage on first run. The legacy AsyncStorage copy is kept as a
+// backup (not deleted) once seeded into kv.
+async function loadMigratedValue(key: string): Promise<string | null> {
+  const kvValue = await kvGet(key);
+  if (kvValue !== null) {
+    return kvValue;
+  }
+
+  const legacyValue = await AsyncStorage.getItem(key);
+  if (legacyValue !== null) {
+    await kvSet(key, legacyValue);
+  }
+
+  return legacyValue;
+}
+
+export async function loadStoredState(): Promise<AppState> {
+  const rawValue = await loadMigratedValue(STORAGE_KEY);
+  return normalizeStoredState(rawValue);
+}
+
+export async function storeState(state: AppState) {
+  await kvSet(STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function loadStoredDayModules(): Promise<string | null> {
+  return loadMigratedValue(DAY_MODULES_KEY);
+}
+
+export async function storeDayModules(rawValue: string) {
+  await kvSet(DAY_MODULES_KEY, rawValue);
+}
+
+
+===== .\src\model\defaults.ts =====
+
+import type { AppState, CalendarBlock, CalendarEvent, GoalBucketKey, Habit, MetricField, PromptSet, Task, TaskGroup } from "./types";
+
+export const defaultHabits: Habit[] = [];
+
+export const defaultTasks: Task[] = [];
+
+export const defaultTaskGroups: TaskGroup[] = [];
+
+export const defaultPrompts: PromptSet = {
+  daily: ["What matters today?", "What did I avoid today?", "What did I do well?"],
+  monthly: ["What actually mattered this month?", "What did I avoid?", "What needs to change next month?"],
+};
+
+export const defaultMetrics: MetricField[] = [];
+
+export const defaultGoals: AppState["goals"] = {
+  vision: [],
+  month: [],
+  today: [],
+};
+
+export const defaultCalendarEvents: CalendarEvent[] = [];
+export const defaultCalendarBlocks: CalendarBlock[] = [];
+
+export const defaultGoalDrafts: Record<GoalBucketKey, { title: string; note: string }> = {
+  vision: { title: "", note: "" },
+  month: { title: "", note: "" },
+  today: { title: "", note: "" },
+};
+
+export function getDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function createInitialState(): AppState {
+  return {
+    hardestTask: "",
+    firstStep: "",
+    taskGroups: defaultTaskGroups,
+    tasks: defaultTasks,
+    habits: defaultHabits,
+    journal: "",
+    monthlyJournal: "",
+    prompts: defaultPrompts,
+    metrics: defaultMetrics,
+    goals: defaultGoals,
+    goalDrafts: defaultGoalDrafts,
+    activeTaskId: null,
+    activeCalendarEventId: null,
+    isRunning: false,
+    runningSince: null,
+    sessionSeconds: 0,
+    todayFocusSeconds: 0,
+    timerMode: "free",
+    timerTotalSeconds: 25 * 60,
+    timerAlert: null,
+    pomodoroPhase: "focus",
+    pomodoroCompletedFocusBlocks: 0,
+    pomodoroConfig: {
+      workMinutes: 25,
+      breakMinutes: 5,
+      rounds: 4,
+    },
+    compactMode: false,
+    showFloatingTimer: false,
+    timerExpanded: false,
+    accent: "indigo",
+    themeMode: "system",
+    fontStyle: "system",
+    focusSessions: [],
+    calendarEvents: defaultCalendarEvents,
+    calendarBlocks: defaultCalendarBlocks,
+    dailySnapshots: {},
+    dailyHistory: {},
+    currentDayKey: getDayKey(),
+  };
+}
+
+
+===== .\src\model\logic.ts =====
+
+import { getDayKey } from "./defaults";
+import { dayKeyToDate, diffCalendarDays, timeValueToMinutes } from "./time";
+import type {
+  AppState,
+  CalendarBlock,
+  CalendarEvent,
+  DailyHistoryEntry,
+  DailyHistoryTask,
+  DailySnapshot,
+  PomodoroConfig,
+  PomodoroPhase,
+  Task,
+  TaskGroup,
+  TimerAlert,
+} from "./types";
+
+export function getCompletedTasksForDay(tasks: Task[], dayKey: string) {
+  return tasks.filter((task) => task.completed && task.completedDayKey === dayKey);
+}
+
+export function buildDailyHistoryTasks(state: AppState): DailyHistoryTask[] {
+  return getCompletedTasksForDay(state.tasks, state.currentDayKey).map((task) => ({
+    id: task.id,
+    groupId: task.groupId,
+    groupTitle: state.taskGroups.find((group) => group.id === task.groupId)?.title ?? "Unknown",
+    title: task.title,
+    secondsSpent: task.secondsSpent,
+    completedDayKey: task.completedDayKey,
+  }));
+}
+
+export function buildSnapshot(state: AppState, elapsedSeconds = 0): DailySnapshot {
+  return {
+    dayKey: state.currentDayKey,
+    focusSeconds: state.todayFocusSeconds + elapsedSeconds,
+    completedTasks: getCompletedTasksForDay(state.tasks, state.currentDayKey).length,
+    completedHabits: state.habits.filter((habit) => habit.checked).length,
+    totalHabits: state.habits.length,
+  };
+}
+
+export function buildDailyHistoryEntry(state: AppState, capturedAt = Date.now(), elapsedSeconds = 0): DailyHistoryEntry {
+  return {
+    dayKey: state.currentDayKey,
+    capturedAt,
+    hardestTask: state.hardestTask,
+    firstStep: state.firstStep,
+    journal: state.journal,
+    monthlyJournal: state.monthlyJournal,
+    tasks: buildDailyHistoryTasks(state),
+    habits: state.habits.map((habit) => ({ ...habit })),
+    metrics: state.metrics.map((metric) => ({ ...metric })),
+    goals: {
+      vision: state.goals.vision.map((goal) => ({ ...goal })),
+      month: state.goals.month.map((goal) => ({ ...goal })),
+      today: state.goals.today.map((goal) => ({ ...goal })),
+    },
+    snapshot: buildSnapshot(state, elapsedSeconds),
+  };
+}
+
+export function normalizePomodoroConfig(config?: Partial<PomodoroConfig>): PomodoroConfig {
+  return {
+    workMinutes: config?.workMinutes ?? 25,
+    breakMinutes: config?.breakMinutes ?? 5,
+    rounds: config?.rounds ?? 4,
+  };
+}
+
+export function createTimerAlert(title: string, message: string): TimerAlert {
+  return {
+    id: Date.now(),
+    title,
+    message,
+  };
+}
+
+export function getPomodoroDurationSeconds(config: PomodoroConfig, phase: PomodoroPhase) {
+  if (phase === "focus") {
+    return config.workMinutes * 60;
+  }
+
+  return config.breakMinutes * 60;
+}
+
+export function resetDailyFields(state: AppState, nextDayKey: string): AppState {
+  return {
+    ...state,
+    activeTaskId: null,
+    activeCalendarEventId: null,
+    isRunning: false,
+    runningSince: null,
+    sessionSeconds: 0,
+    todayFocusSeconds: 0,
+    timerTotalSeconds: getPomodoroDurationSeconds(state.pomodoroConfig, "focus"),
+    timerAlert: null,
+    pomodoroPhase: "focus",
+    pomodoroCompletedFocusBlocks: 0,
+    hardestTask: "",
+    firstStep: "",
+    journal: "",
+    habits: state.habits.map((habit) => ({ ...habit, checked: false })),
+    metrics: state.metrics.map((metric) => ({ ...metric, value: "" })),
+    currentDayKey: nextDayKey,
+    showFloatingTimer: false,
+    timerExpanded: false,
+  };
+}
+
+export function withCommittedElapsed(state: AppState, endedAt = Date.now()): AppState {
+  if (!state.isRunning || !state.runningSince) {
+    return state;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((endedAt - state.runningSince) / 1000));
+  if (!elapsedSeconds) {
+    return { ...state, isRunning: false, runningSince: null };
+  }
+
+  const activeCalendarEvent = state.calendarEvents.find((event) => event.id === state.activeCalendarEventId);
+  if (activeCalendarEvent) {
+    const focusSessions = [
+      {
+        id: `session-${endedAt}`,
+        taskId: activeCalendarEvent.id,
+        taskTitle: activeCalendarEvent.title,
+        durationSeconds: elapsedSeconds,
+        startedAt: endedAt - elapsedSeconds * 1000,
+        endedAt,
+      },
+      ...state.focusSessions,
+    ];
+
+    return {
+      ...state,
+      isRunning: false,
+      runningSince: null,
+      sessionSeconds: state.sessionSeconds + elapsedSeconds,
+      todayFocusSeconds: state.todayFocusSeconds + elapsedSeconds,
+      focusSessions,
+    };
+  }
+
+  if (state.timerMode === "pomodoro") {
+    const committedSeconds = Math.min(elapsedSeconds, state.timerTotalSeconds);
+    const remainingSeconds = Math.max(0, state.timerTotalSeconds - committedSeconds);
+    const isFocusPhase = state.pomodoroPhase === "focus";
+    const activeTask = state.tasks.find((task) => task.id === state.activeTaskId);
+    const focusSessions = isFocusPhase && activeTask && committedSeconds > 0
+      ? [
+          {
+            id: `session-${endedAt}`,
+            taskId: activeTask.id,
+            taskTitle: activeTask.title,
+            durationSeconds: committedSeconds,
+            startedAt: endedAt - committedSeconds * 1000,
+            endedAt,
+          },
+          ...state.focusSessions,
+        ]
+      : state.focusSessions;
+
+    return {
+      ...state,
+      isRunning: false,
+      runningSince: null,
+      timerTotalSeconds: remainingSeconds,
+      sessionSeconds: isFocusPhase ? state.sessionSeconds + committedSeconds : state.sessionSeconds,
+      todayFocusSeconds: isFocusPhase ? state.todayFocusSeconds + committedSeconds : state.todayFocusSeconds,
+      tasks: isFocusPhase && state.activeTaskId
+        ? state.tasks.map((task) => (task.id === state.activeTaskId ? { ...task, secondsSpent: task.secondsSpent + committedSeconds } : task))
+        : state.tasks,
+      focusSessions,
+    };
+  }
+
+  const activeTask = state.tasks.find((task) => task.id === state.activeTaskId);
+  const focusSessions = activeTask
+    ? [
+        {
+          id: `session-${endedAt}`,
+          taskId: activeTask.id,
+          taskTitle: activeTask.title,
+          durationSeconds: elapsedSeconds,
+          startedAt: endedAt - elapsedSeconds * 1000,
+          endedAt,
+        },
+        ...state.focusSessions,
+      ]
+    : state.focusSessions;
+
+  return {
+    ...state,
+    isRunning: false,
+    runningSince: null,
+    sessionSeconds: state.sessionSeconds + elapsedSeconds,
+    todayFocusSeconds: state.todayFocusSeconds + elapsedSeconds,
+    tasks: state.activeTaskId
+      ? state.tasks.map((task) => (task.id === state.activeTaskId ? { ...task, secondsSpent: task.secondsSpent + elapsedSeconds } : task))
+      : state.tasks,
+    focusSessions,
+  };
+}
+
+export function getDerivedElapsedSeconds(state: AppState, now: number) {
+  if (!state.isRunning || !state.runningSince) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor((now - state.runningSince) / 1000));
+}
+
+export function isSnapshotWon(snapshot: DailySnapshot) {
+  const totalHabits = snapshot.totalHabits ?? 0;
+  return snapshot.focusSeconds > 0 && (totalHabits > 0 ? snapshot.completedHabits === totalHabits : snapshot.completedTasks > 0);
+}
+
+export function getDaysWonCount(snapshots: DailySnapshot[]) {
+  return snapshots.filter((item) => isSnapshotWon(item)).length;
+}
+
+export function createTaskGroup(title: string): TaskGroup {
+  return {
+    id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+  };
+}
+
+// Single recurrence implementation (the web app had three parallel copies).
+export function isCalendarEventOnDay(event: CalendarEvent, dayKey: string) {
+  if (dayKey < event.startDayKey) {
+    return false;
+  }
+
+  if (event.repeatEndDayKey && dayKey > event.repeatEndDayKey) {
+    return false;
+  }
+
+  if (event.repeat === "none") {
+    return dayKey >= event.startDayKey && dayKey <= event.endDayKey;
+  }
+
+  const day = dayKeyToDate(dayKey);
+  const start = dayKeyToDate(event.startDayKey);
+
+  if (event.repeat === "daily") {
+    return true;
+  }
+
+  if (event.repeat === "weekly") {
+    return day.getDay() === start.getDay() && diffCalendarDays(dayKey, event.startDayKey) % 7 === 0;
+  }
+
+  if (event.repeat === "monthly") {
+    return day.getDate() === start.getDate();
+  }
+
+  return day.getMonth() === start.getMonth() && day.getDate() === start.getDate();
+}
+
+export function getCalendarEventWindow(event: CalendarEvent, timestamp: number) {
+  const date = new Date(timestamp);
+  const dayKey = getDayKey(date);
+
+  if (!isCalendarEventOnDay(event, dayKey)) {
+    return null;
+  }
+
+  const start = dayKeyToDate(dayKey);
+  start.setMinutes(timeValueToMinutes(event.startTime));
+
+  const end = dayKeyToDate(dayKey);
+  end.setMinutes(Math.max(timeValueToMinutes(event.startTime) + 15, timeValueToMinutes(event.endTime)));
+
+  return {
+    start: start.getTime(),
+    end: end.getTime(),
+  };
+}
+
+export function getCalendarEventDurationSeconds(event: CalendarEvent) {
+  const startMinutes = timeValueToMinutes(event.startTime);
+  const endMinutes = Math.max(startMinutes + 15, timeValueToMinutes(event.endTime));
+
+  return (endMinutes - startMinutes) * 60;
+}
+
+export function createCalendarEvent(input: Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">): CalendarEvent {
+  const timestamp = Date.now();
+
+  return {
+    ...input,
+    id: `event-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+export function createCalendarBlock(input: Omit<CalendarBlock, "id" | "createdAt" | "updatedAt">): CalendarBlock {
+  const timestamp = Date.now();
+
+  return {
+    ...input,
+    id: `block-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+export function advancePomodoroPhase(state: AppState, advancedAt = Date.now()): AppState {
+  if (state.timerMode !== "pomodoro" || !state.runningSince) {
+    return state;
+  }
+
+  const pomodoroConfig = normalizePomodoroConfig(state.pomodoroConfig);
+  const phaseDuration = Math.max(1, state.timerTotalSeconds);
+  const committed = withCommittedElapsed({ ...state, pomodoroConfig }, state.runningSince + phaseDuration * 1000);
+
+  if (state.pomodoroPhase === "focus") {
+    const completedFocusBlocks = committed.pomodoroCompletedFocusBlocks + 1;
+    const completedCycle = completedFocusBlocks >= pomodoroConfig.rounds;
+    const shouldRunBreak = !completedCycle && pomodoroConfig.breakMinutes > 0;
+
+    if (shouldRunBreak) {
+      return {
+        ...committed,
+        pomodoroConfig,
+        isRunning: true,
+        runningSince: advancedAt,
+        pomodoroPhase: "break",
+        pomodoroCompletedFocusBlocks: completedFocusBlocks,
+        timerTotalSeconds: getPomodoroDurationSeconds(pomodoroConfig, "break"),
+        timerAlert: createTimerAlert(
+          `Round ${completedFocusBlocks} complete`,
+          `Focus round ${completedFocusBlocks} of ${pomodoroConfig.rounds} finished. Break started for ${pomodoroConfig.breakMinutes} minute${pomodoroConfig.breakMinutes === 1 ? "" : "s"}.`,
+        ),
+        showFloatingTimer: true,
+      };
+    }
+
+    if (!completedCycle) {
+      return {
+        ...committed,
+        pomodoroConfig,
+        isRunning: true,
+        runningSince: advancedAt,
+        pomodoroPhase: "focus",
+        pomodoroCompletedFocusBlocks: completedFocusBlocks,
+        timerTotalSeconds: getPomodoroDurationSeconds(pomodoroConfig, "focus"),
+        timerAlert: createTimerAlert(
+          `Round ${completedFocusBlocks} complete`,
+          `Focus round ${completedFocusBlocks} of ${pomodoroConfig.rounds} finished. Next focus round started immediately because break minutes is set to 0.`,
+        ),
+        showFloatingTimer: true,
+      };
+    }
+
+    return {
+      ...committed,
+      pomodoroConfig,
+      isRunning: false,
+      runningSince: null,
+      pomodoroPhase: "focus",
+      pomodoroCompletedFocusBlocks: completedFocusBlocks,
+      timerTotalSeconds: getPomodoroDurationSeconds(pomodoroConfig, "focus"),
+      timerAlert: createTimerAlert(
+        "Pomodoro cycle complete",
+        `${completedFocusBlocks} of ${pomodoroConfig.rounds} focus rounds finished. Start the next cycle when you're ready.`,
+      ),
+      showFloatingTimer: true,
+    };
+  }
+
+  return {
+    ...committed,
+    pomodoroConfig,
+    isRunning: true,
+    runningSince: advancedAt,
+    pomodoroPhase: "focus",
+    timerTotalSeconds: getPomodoroDurationSeconds(pomodoroConfig, "focus"),
+    timerAlert: createTimerAlert(
+      "Break complete",
+      `Break finished. Focus round ${Math.min(committed.pomodoroCompletedFocusBlocks + 1, pomodoroConfig.rounds)} of ${pomodoroConfig.rounds} is starting now.`,
+    ),
+    showFloatingTimer: true,
+  };
+}
+
+export function archiveDay(state: AppState, nextDayKey: string, timestamp = Date.now()): AppState {
+  const committed = withCommittedElapsed(state, timestamp);
+
+  return {
+    ...resetDailyFields(committed, nextDayKey),
+    dailySnapshots: {
+      ...committed.dailySnapshots,
+      [state.currentDayKey]: buildSnapshot(committed),
+    },
+    dailyHistory: {
+      ...committed.dailyHistory,
+      [state.currentDayKey]: buildDailyHistoryEntry(committed, timestamp),
+    },
+  };
+}
+
+
+===== .\src\model\calendar-import.ts =====
+
+import type { CalendarColorKey, CalendarEvent, CalendarRepeat } from "./types";
+
+export type CalendarImportEvent = Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">;
+
+type CalendarImportResult =
+  | { ok: true; events: CalendarImportEvent[] }
+  | { ok: false; errors: string[] };
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^\d{2}:\d{2}$/;
+const COLOR_KEYS = ["sage", "mint", "amber", "rose", "sky", "violet"] as const;
+const REPEAT_VALUES = ["none", "daily", "weekly", "monthly", "yearly"] as const;
+const DEFAULT_COLOR: CalendarColorKey = "sage";
+const DEFAULT_REMINDER_MINUTES = 10;
+const MAX_IMPORT_EVENTS = 500;
+
+export const CALENDAR_IMPORT_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  title: "Regimen Calendar Import",
+  type: "object",
+  required: ["schemaVersion", "events"],
+  properties: {
+    schemaVersion: { const: 1 },
+    timezone: {
+      type: "string",
+      description: "Optional IANA timezone label for the generator. Dates and times are imported as local calendar values.",
+      examples: ["Asia/Dubai", "America/New_York"],
+    },
+    events: {
+      type: "array",
+      minItems: 1,
+      maxItems: MAX_IMPORT_EVENTS,
+      items: {
+        type: "object",
+        required: ["title", "startDate", "startTime"],
+        properties: {
+          title: { type: "string", minLength: 1 },
+          startDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+          endDate: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+          startTime: { type: "string", pattern: "^\\d{2}:\\d{2}$" },
+          endTime: { type: "string", pattern: "^\\d{2}:\\d{2}$" },
+          durationMinutes: { type: "integer", minimum: 15, maximum: 1439 },
+          color: { type: "string", enum: COLOR_KEYS },
+          notes: { type: "string" },
+          reminderMinutes: {
+            anyOf: [
+              { type: "integer", minimum: 0 },
+              { type: "null" },
+            ],
+          },
+          repeat: { type: "string", enum: REPEAT_VALUES },
+          repeatEndDate: {
+            anyOf: [
+              { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+              { type: "null" },
+            ],
+          },
+        },
+        anyOf: [
+          { required: ["endTime"] },
+          { required: ["durationMinutes"] },
+        ],
+      },
+    },
+  },
+} as const;
+
+export const CALENDAR_IMPORT_EXAMPLE = {
+  schemaVersion: 1,
+  timezone: "Asia/Dubai",
+  events: [
+    {
+      title: "Strength training",
+      startDate: "2026-06-01",
+      startTime: "07:00",
+      endTime: "08:15",
+      color: "mint",
+      notes: "Lower body focus. Warm up first.",
+      reminderMinutes: 10,
+      repeat: "weekly",
+      repeatEndDate: "2026-07-27",
+    },
+    {
+      title: "Deep work block",
+      startDate: "2026-06-01",
+      startTime: "10:00",
+      durationMinutes: 120,
+      color: "sky",
+      reminderMinutes: null,
+      repeat: "none",
+    },
+  ],
+} as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDateValue(value: unknown) {
+  if (typeof value !== "string" || !DATE_PATTERN.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function timeToMinutes(value: string) {
+  const [hours = 0, minutes = 0] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTimeValue(minutes: number) {
+  const normalized = Math.max(0, Math.min(24 * 60 - 1, Math.floor(minutes)));
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+function isTimeValue(value: unknown) {
+  if (typeof value !== "string" || !TIME_PATTERN.test(value)) {
+    return false;
+  }
+
+  const [hours = 0, minutes = 0] = value.split(":").map(Number);
+
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
+
+function readString(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "string" ? value.trim() : null;
+}
+
+function readDate(record: Record<string, unknown>, key: string, path: string, errors: string[]) {
+  const value = readString(record, key);
+
+  if (!value) {
+    return null;
+  }
+
+  if (!isDateValue(value)) {
+    errors.push(`${path}.${key} must be a real date in YYYY-MM-DD format.`);
+    return null;
+  }
+
+  return value;
+}
+
+function readTime(record: Record<string, unknown>, key: string, path: string, errors: string[]) {
+  const value = readString(record, key);
+
+  if (!value) {
+    return null;
+  }
+
+  if (!isTimeValue(value)) {
+    errors.push(`${path}.${key} must be a valid 24-hour time in HH:mm format.`);
+    return null;
+  }
+
+  return value;
+}
+
+function parseImportEvent(value: unknown, index: number, errors: string[]): CalendarImportEvent | null {
+  const path = `events[${index}]`;
+
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object.`);
+    return null;
+  }
+
+  const title = readString(value, "title");
+  if (!title) {
+    errors.push(`${path}.title is required.`);
+  }
+
+  const rawStartDate = readString(value, "startDate");
+  const startDayKey = readDate(value, "startDate", path, errors);
+  if (!rawStartDate) {
+    errors.push(`${path}.startDate is required.`);
+  }
+
+  const endDayKey = readDate(value, "endDate", path, errors) ?? startDayKey;
+  if (startDayKey && endDayKey && endDayKey < startDayKey) {
+    errors.push(`${path}.endDate cannot be before startDate.`);
+  }
+
+  const rawStartTime = readString(value, "startTime");
+  const startTime = readTime(value, "startTime", path, errors);
+  if (!rawStartTime) {
+    errors.push(`${path}.startTime is required.`);
+  }
+
+  const explicitEndTime = readTime(value, "endTime", path, errors);
+  const durationMinutes = value.durationMinutes;
+  let endTime = explicitEndTime;
+
+  if (!endTime) {
+    if (typeof durationMinutes !== "number" || !Number.isInteger(durationMinutes)) {
+      errors.push(`${path} requires either endTime or integer durationMinutes.`);
+    } else if (durationMinutes < 15 || durationMinutes > 1439) {
+      errors.push(`${path}.durationMinutes must be between 15 and 1439.`);
+    } else if (startTime) {
+      const endMinutes = timeToMinutes(startTime) + durationMinutes;
+      if (endMinutes > 24 * 60 - 1) {
+        errors.push(`${path}.durationMinutes pushes the event past 23:59.`);
+      } else {
+        endTime = minutesToTimeValue(endMinutes);
+      }
+    }
+  }
+
+  if (startTime && endTime && timeToMinutes(endTime) <= timeToMinutes(startTime)) {
+    errors.push(`${path}.endTime must be after startTime.`);
+  }
+
+  const colorValue = readString(value, "color") ?? DEFAULT_COLOR;
+  const color = COLOR_KEYS.includes(colorValue as CalendarColorKey) ? colorValue as CalendarColorKey : null;
+  if (!color) {
+    errors.push(`${path}.color must be one of: ${COLOR_KEYS.join(", ")}.`);
+  }
+
+  const repeatValue = readString(value, "repeat") ?? "none";
+  const repeat = REPEAT_VALUES.includes(repeatValue as CalendarRepeat) ? repeatValue as CalendarRepeat : null;
+  if (!repeat) {
+    errors.push(`${path}.repeat must be one of: ${REPEAT_VALUES.join(", ")}.`);
+  }
+
+  const repeatEndValue = value.repeatEndDate;
+  let repeatEndDayKey: string | null = null;
+  if (repeatEndValue !== undefined && repeatEndValue !== null) {
+    repeatEndDayKey = readDate(value, "repeatEndDate", path, errors);
+  }
+
+  if (repeatEndDayKey && startDayKey && repeatEndDayKey < startDayKey) {
+    errors.push(`${path}.repeatEndDate cannot be before startDate.`);
+  }
+
+  const reminderValue = value.reminderMinutes;
+  const reminderMinutes = reminderValue === undefined
+    ? DEFAULT_REMINDER_MINUTES
+    : reminderValue === null
+      ? null
+      : typeof reminderValue === "number" && Number.isInteger(reminderValue) && reminderValue >= 0
+        ? reminderValue
+        : undefined;
+
+  if (reminderMinutes === undefined) {
+    errors.push(`${path}.reminderMinutes must be a non-negative integer or null.`);
+  }
+
+  if (!title || !startDayKey || !endDayKey || !startTime || !endTime || !color || !repeat || reminderMinutes === undefined) {
+    return null;
+  }
+
+  return {
+    title,
+    startDayKey,
+    endDayKey,
+    startTime,
+    endTime,
+    color,
+    notes: readString(value, "notes") ?? "",
+    reminderMinutes,
+    repeat,
+    repeatEndDayKey: repeat === "none" ? null : repeatEndDayKey,
+  };
+}
+
+export function parseCalendarImportJson(source: string): CalendarImportResult {
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(source);
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [error instanceof Error ? error.message : "JSON could not be parsed."],
+    };
+  }
+
+  if (!isRecord(payload)) {
+    return { ok: false, errors: ["Import root must be an object."] };
+  }
+
+  const errors: string[] = [];
+
+  if (payload.schemaVersion !== 1) {
+    errors.push("schemaVersion must be 1.");
+  }
+
+  if (payload.timezone !== undefined && typeof payload.timezone !== "string") {
+    errors.push("timezone must be a string when provided.");
+  }
+
+  if (!Array.isArray(payload.events)) {
+    errors.push("events must be an array.");
+    return { ok: false, errors };
+  }
+
+  if (payload.events.length === 0) {
+    errors.push("events must include at least one event.");
+  }
+
+  if (payload.events.length > MAX_IMPORT_EVENTS) {
+    errors.push(`events cannot include more than ${MAX_IMPORT_EVENTS} events.`);
+  }
+
+  const events = payload.events
+    .slice(0, MAX_IMPORT_EVENTS)
+    .map((event, index) => parseImportEvent(event, index, errors))
+    .filter((event): event is CalendarImportEvent => Boolean(event));
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, events };
+}
+
+
+===== .\src\store\executionStore.ts =====
+
+import { create } from "zustand";
+
+import { createInitialState, getDayKey } from "../model/defaults";
+import {
+  advancePomodoroPhase,
+  archiveDay,
+  createCalendarBlock,
+  createCalendarEvent,
+  createTaskGroup,
+  getPomodoroDurationSeconds,
+  normalizePomodoroConfig,
+  withCommittedElapsed,
+} from "../model/logic";
+import { loadStoredDayModules, loadStoredState, storeDayModules, storeState } from "../model/storage";
+import {
+  cancelPomodoroPhaseEndNotifications,
+  schedulePomodoroPhaseEndNotification,
+} from "../runtime/notifications";
+import type {
+  AccentKey,
+  AppState,
+  CalendarBlock,
+  CalendarEvent,
+  FontStyleId,
+  GoalBucketKey,
+  GoalDraft,
+  MetricField,
+  MetricType,
+  PomodoroConfig,
+  PromptSet,
+  TaskKanbanStatus,
+  ThemeMode,
+  TimerMode,
+} from "../model/types";
+import { minutesToTimeValue, timeValueToMinutes } from "../model/time";
+
+export const DAY_MODULE_IDS = ["agenda", "next", "goals", "habits", "stats", "inputs"] as const;
+export type DayModuleId = (typeof DAY_MODULE_IDS)[number];
+
+type ExecutionStore = {
+  state: AppState;
+  hydrated: boolean;
+  now: number;
+  dayModules: DayModuleId[];
+
+  hydrate: () => Promise<void>;
+  setNow: (timestamp: number) => void;
+  checkDayRollover: () => void;
+  maybeAdvancePomodoro: () => void;
+
+  toggleDayModule: (module: DayModuleId) => void;
+
+  startTask: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => void;
+  saveTaskEdit: (taskId: string, title: string) => void;
+  addTask: (groupId: string | undefined, title: string) => void;
+  updateTaskNotes: (taskId: string, notes: string) => void;
+  updateTaskKanbanStatus: (taskId: string, kanbanStatus: TaskKanbanStatus) => void;
+
+  addTaskGroup: (title: string) => void;
+  saveTaskGroupEdit: (groupId: string, title: string) => void;
+  deleteTaskGroup: (groupId: string) => void;
+
+  toggleHabit: (habitId: string) => void;
+  addHabit: (label: string) => void;
+  saveHabitEdit: (habitId: string, label: string) => void;
+  deleteHabit: (habitId: string) => void;
+
+  addMetric: (label: string, type: MetricType) => void;
+  updateMetric: (id: string, key: keyof MetricField, value: string) => void;
+  removeMetric: (id: string) => void;
+
+  addPrompt: (type: keyof PromptSet, prompt: string) => void;
+  removePrompt: (type: keyof PromptSet, prompt: string) => void;
+
+  updateGoalDraft: (bucket: GoalBucketKey, key: keyof GoalDraft, value: string) => void;
+  addGoal: (bucket: GoalBucketKey) => void;
+  removeGoal: (bucket: GoalBucketKey, id: string) => void;
+
+  setHardestTask: (value: string) => void;
+  setFirstStep: (value: string) => void;
+  setJournal: (value: string) => void;
+  setMonthlyJournal: (value: string) => void;
+
+  startFocus: () => void;
+  startCalendarEvent: (eventId: string) => void;
+  pauseTimer: () => void;
+  stopTimer: () => void;
+  resetToday: () => void;
+  setTimerMode: (value: TimerMode) => void;
+  updatePomodoroConfig: (key: keyof PomodoroConfig, value: number) => void;
+  dismissTimerAlert: () => void;
+  setShowFloatingTimer: (value: boolean) => void;
+  setTimerExpanded: (value: boolean) => void;
+
+  setCompactMode: (value: boolean) => void;
+  setAccent: (value: AccentKey) => void;
+  setThemeMode: (value: ThemeMode) => void;
+  setFontStyle: (value: FontStyleId) => void;
+
+  addCalendarEvent: (event: Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">) => void;
+  addCalendarEvents: (events: Array<Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">>) => void;
+  updateCalendarEvent: (eventId: string, patch: Partial<Omit<CalendarEvent, "id" | "createdAt">>) => void;
+  deleteCalendarEvent: (eventId: string) => void;
+  rescheduleCalendarEvent: (eventId: string, startDayKey: string, startTime: string) => void;
+  addCalendarBlock: (block: Omit<CalendarBlock, "id" | "createdAt" | "updatedAt">) => void;
+  deleteCalendarBlock: (blockId: string) => void;
+};
+
+function normalizeDayModules(raw: string | null): DayModuleId[] {
+  if (!raw) {
+    return [...DAY_MODULE_IDS];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [...DAY_MODULE_IDS];
+    }
+
+    const filtered = parsed.filter((item): item is DayModuleId => DAY_MODULE_IDS.includes(item as DayModuleId));
+    return filtered.length > 0 ? filtered : [...DAY_MODULE_IDS];
+  } catch {
+    return [...DAY_MODULE_IDS];
+  }
+}
+
+export const useExecutionStore = create<ExecutionStore>((set, get) => {
+  const update = (updater: (current: AppState) => AppState) => {
+    set((store) => ({ state: updater(store.state) }));
+  };
+
+  return {
+    state: createInitialState(),
+    hydrated: false,
+    now: Date.now(),
+    dayModules: [...DAY_MODULE_IDS],
+
+    hydrate: async () => {
+      try {
+        const [loadedState, rawModules] = await Promise.all([
+          loadStoredState(),
+          loadStoredDayModules(),
+        ]);
+        const todayKey = getDayKey();
+        const normalizedLoadedState = {
+          ...loadedState,
+          pomodoroConfig: normalizePomodoroConfig(loadedState.pomodoroConfig),
+        };
+
+        const nextState = normalizedLoadedState.currentDayKey !== todayKey
+          ? archiveDay(normalizedLoadedState, todayKey)
+          : normalizedLoadedState;
+
+        set({ state: nextState, dayModules: normalizeDayModules(rawModules), hydrated: true, now: Date.now() });
+      } catch {
+        set({ state: createInitialState(), hydrated: true, now: Date.now() });
+      }
+    },
+
+    setNow: (timestamp) => set({ now: timestamp }),
+
+    checkDayRollover: () => {
+      const todayKey = getDayKey();
+      if (todayKey === get().state.currentDayKey) {
+        return;
+      }
+
+      update((current) => archiveDay(current, todayKey));
+    },
+
+    maybeAdvancePomodoro: () => {
+      const { state, now } = get();
+      if (!state.isRunning || !state.runningSince || state.activeCalendarEventId || state.timerMode !== "pomodoro") {
+        return;
+      }
+
+      const elapsed = Math.max(0, Math.floor((now - state.runningSince) / 1000));
+      if (elapsed < state.timerTotalSeconds) {
+        return;
+      }
+
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => advancePomodoroPhase(current, timestamp));
+    },
+
+    toggleDayModule: (module) => {
+      set((store) => {
+        const active = store.dayModules.includes(module);
+        const next = active ? store.dayModules.filter((item) => item !== module) : [...store.dayModules, module];
+        return { dayModules: next.length > 0 ? next : store.dayModules };
+      });
+    },
+
+    startTask: (taskId) => {
+      const { state } = get();
+      const nextTask = state.tasks.find((item) => item.id === taskId);
+      if (!nextTask || nextTask.completed) {
+        return;
+      }
+
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const shouldCommitCurrent = Boolean((current.activeTaskId && current.activeTaskId !== taskId) || current.activeCalendarEventId);
+        const committed = shouldCommitCurrent ? withCommittedElapsed(current, timestamp) : current;
+        const isPomodoro = committed.timerMode === "pomodoro";
+        const normalizedConfig = normalizePomodoroConfig(committed.pomodoroConfig);
+        const shouldResumePomodoro = isPomodoro && committed.activeTaskId === taskId && committed.pomodoroPhase === "focus" && committed.timerTotalSeconds > 0;
+
+        return {
+          ...committed,
+          pomodoroConfig: normalizedConfig,
+          activeTaskId: taskId,
+          activeCalendarEventId: null,
+          isRunning: true,
+          runningSince: timestamp,
+          sessionSeconds: committed.activeTaskId === taskId ? committed.sessionSeconds : 0,
+          pomodoroPhase: isPomodoro ? "focus" : committed.pomodoroPhase,
+          timerTotalSeconds: isPomodoro
+            ? shouldResumePomodoro
+              ? committed.timerTotalSeconds
+              : getPomodoroDurationSeconds(normalizedConfig, "focus")
+            : committed.timerTotalSeconds,
+          timerAlert: null,
+          showFloatingTimer: true,
+          tasks: committed.tasks.map((task) =>
+            task.id === taskId && task.kanbanStatus === "backlog"
+              ? { ...task, kanbanStatus: "in_progress" as const }
+              : task,
+          ),
+        };
+      });
+    },
+
+    completeTask: (taskId) => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const committed = current.activeTaskId === taskId ? withCommittedElapsed(current, timestamp) : current;
+        return {
+          ...committed,
+          tasks: committed.tasks.map((task) => (task.id === taskId ? { ...task, completed: true, completedDayKey: current.currentDayKey, kanbanStatus: "done" as const } : task)),
+          activeTaskId: current.activeTaskId === taskId ? null : committed.activeTaskId,
+          sessionSeconds: current.activeTaskId === taskId ? 0 : committed.sessionSeconds,
+          showFloatingTimer: current.activeTaskId === taskId ? false : committed.showFloatingTimer,
+        };
+      });
+    },
+
+    deleteTask: (taskId) => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const committed = current.activeTaskId === taskId ? withCommittedElapsed(current, timestamp) : current;
+        return {
+          ...committed,
+          tasks: committed.tasks.filter((task) => task.id !== taskId),
+          activeTaskId: committed.activeTaskId === taskId ? null : committed.activeTaskId,
+          sessionSeconds: committed.activeTaskId === taskId ? 0 : committed.sessionSeconds,
+        };
+      });
+    },
+
+    saveTaskEdit: (taskId, title) => {
+      const trimmed = title.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        tasks: current.tasks.map((task) => (task.id === taskId ? { ...task, title: trimmed } : task)),
+      }));
+    },
+
+    addTask: (groupId, title) => {
+      const trimmed = title.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => {
+        let nextTaskGroups = current.taskGroups;
+        let resolvedGroupId = groupId;
+
+        if (!resolvedGroupId) {
+          if (nextTaskGroups.length === 0) {
+            const generalGroup = createTaskGroup("General");
+            nextTaskGroups = [generalGroup];
+            resolvedGroupId = generalGroup.id;
+          } else {
+            resolvedGroupId = nextTaskGroups[0].id;
+          }
+        }
+
+        return {
+          ...current,
+          taskGroups: nextTaskGroups,
+          tasks: [...current.tasks, { id: `task-${Date.now()}`, groupId: resolvedGroupId, title: trimmed, completed: false, completedDayKey: null, secondsSpent: 0, notes: "", kanbanStatus: "backlog" as const }],
+        };
+      });
+    },
+
+    updateTaskNotes: (taskId, notes) => {
+      update((current) => ({
+        ...current,
+        tasks: current.tasks.map((task) => (task.id === taskId ? { ...task, notes } : task)),
+      }));
+    },
+
+    updateTaskKanbanStatus: (taskId, kanbanStatus) => {
+      update((current) => ({
+        ...current,
+        tasks: current.tasks.map((task) => {
+          if (task.id !== taskId) {
+            return task;
+          }
+
+          if (kanbanStatus === "done") {
+            return { ...task, kanbanStatus, completed: true, completedDayKey: current.currentDayKey };
+          }
+
+          return { ...task, kanbanStatus, completed: false, completedDayKey: null };
+        }),
+      }));
+    },
+
+    addTaskGroup: (title) => {
+      const trimmed = title.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const group = createTaskGroup(trimmed);
+      update((current) => ({
+        ...current,
+        taskGroups: [...current.taskGroups, group],
+      }));
+    },
+
+    saveTaskGroupEdit: (groupId, title) => {
+      const trimmed = title.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        taskGroups: current.taskGroups.map((group) => (group.id === groupId ? { ...group, title: trimmed } : group)),
+      }));
+    },
+
+    deleteTaskGroup: (groupId) => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const groupTaskIds = current.tasks.filter((task) => task.groupId === groupId).map((task) => task.id);
+        const activeTaskInGroup = current.activeTaskId ? groupTaskIds.includes(current.activeTaskId) : false;
+        const committed = activeTaskInGroup ? withCommittedElapsed(current, timestamp) : current;
+
+        return {
+          ...committed,
+          taskGroups: committed.taskGroups.filter((group) => group.id !== groupId),
+          tasks: committed.tasks.filter((task) => task.groupId !== groupId),
+          activeTaskId: activeTaskInGroup ? null : committed.activeTaskId,
+          sessionSeconds: activeTaskInGroup ? 0 : committed.sessionSeconds,
+        };
+      });
+    },
+
+    toggleHabit: (habitId) => {
+      update((current) => ({
+        ...current,
+        habits: current.habits.map((habit) => (habit.id === habitId ? { ...habit, checked: !habit.checked } : habit)),
+      }));
+    },
+
+    addHabit: (label) => {
+      const trimmed = label.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        habits: [...current.habits, { id: `habit-${Date.now()}`, label: trimmed, checked: false }],
+      }));
+    },
+
+    saveHabitEdit: (habitId, label) => {
+      const trimmed = label.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        habits: current.habits.map((habit) => (habit.id === habitId ? { ...habit, label: trimmed } : habit)),
+      }));
+    },
+
+    deleteHabit: (habitId) => {
+      update((current) => ({
+        ...current,
+        habits: current.habits.filter((habit) => habit.id !== habitId),
+      }));
+    },
+
+    addMetric: (label, type) => {
+      const trimmed = label.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        metrics: [...current.metrics, { id: `metric-${Date.now()}`, label: trimmed, type, value: "", target: "" }],
+      }));
+    },
+
+    updateMetric: (id, key, value) => {
+      update((current) => ({
+        ...current,
+        metrics: current.metrics.map((metric) => (metric.id === id ? { ...metric, [key]: value } : metric)),
+      }));
+    },
+
+    removeMetric: (id) => {
+      update((current) => ({
+        ...current,
+        metrics: current.metrics.filter((metric) => metric.id !== id),
+      }));
+    },
+
+    addPrompt: (type, prompt) => {
+      const candidate = prompt.trim();
+      if (!candidate) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        prompts: { ...current.prompts, [type]: [...current.prompts[type], candidate] },
+      }));
+    },
+
+    removePrompt: (type, prompt) => {
+      update((current) => ({
+        ...current,
+        prompts: { ...current.prompts, [type]: current.prompts[type].filter((item) => item !== prompt) },
+      }));
+    },
+
+    updateGoalDraft: (bucket, key, value) => {
+      update((current) => ({
+        ...current,
+        goalDrafts: { ...current.goalDrafts, [bucket]: { ...current.goalDrafts[bucket], [key]: value } },
+      }));
+    },
+
+    addGoal: (bucket) => {
+      update((current) => {
+        const draft = current.goalDrafts[bucket];
+        if (!draft.title.trim()) {
+          return current;
+        }
+
+        return {
+          ...current,
+          goals: {
+            ...current.goals,
+            [bucket]: [...current.goals[bucket], { id: `goal-${bucket}-${Date.now()}`, title: draft.title.trim(), note: draft.note.trim() }],
+          },
+          goalDrafts: { ...current.goalDrafts, [bucket]: { title: "", note: "" } },
+        };
+      });
+    },
+
+    removeGoal: (bucket, id) => {
+      update((current) => ({
+        ...current,
+        goals: { ...current.goals, [bucket]: current.goals[bucket].filter((goal) => goal.id !== id) },
+      }));
+    },
+
+    setHardestTask: (value) => update((current) => ({ ...current, hardestTask: value })),
+    setFirstStep: (value) => update((current) => ({ ...current, firstStep: value })),
+    setJournal: (value) => update((current) => ({ ...current, journal: value })),
+    setMonthlyJournal: (value) => update((current) => ({ ...current, monthlyJournal: value })),
+
+    startFocus: () => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        if (current.timerMode === "pomodoro") {
+          const normalizedConfig = normalizePomodoroConfig(current.pomodoroConfig);
+          const shouldResetCycle = current.pomodoroCompletedFocusBlocks >= normalizedConfig.rounds && current.pomodoroPhase === "focus";
+
+          return {
+            ...current,
+            pomodoroConfig: normalizedConfig,
+            isRunning: true,
+            runningSince: timestamp,
+            pomodoroPhase: shouldResetCycle ? "focus" : current.pomodoroPhase,
+            pomodoroCompletedFocusBlocks: shouldResetCycle ? 0 : current.pomodoroCompletedFocusBlocks,
+            timerTotalSeconds: shouldResetCycle
+              ? getPomodoroDurationSeconds(normalizedConfig, "focus")
+              : current.timerTotalSeconds,
+            timerAlert: null,
+            showFloatingTimer: true,
+          };
+        }
+
+        return {
+          ...current,
+          isRunning: true,
+          runningSince: timestamp,
+          showFloatingTimer: true,
+        };
+      });
+    },
+
+    startCalendarEvent: (eventId) => {
+      const { state } = get();
+      const event = state.calendarEvents.find((item) => item.id === eventId);
+      if (!event) {
+        return;
+      }
+
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const shouldCommitCurrent = Boolean(current.activeTaskId || current.activeCalendarEventId);
+        const committed = shouldCommitCurrent ? withCommittedElapsed(current, timestamp) : current;
+
+        return {
+          ...committed,
+          activeTaskId: null,
+          activeCalendarEventId: eventId,
+          isRunning: true,
+          runningSince: timestamp,
+          sessionSeconds: committed.activeCalendarEventId === eventId ? committed.sessionSeconds : 0,
+          timerAlert: null,
+          showFloatingTimer: true,
+        };
+      });
+    },
+
+    pauseTimer: () => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => withCommittedElapsed(current, timestamp));
+    },
+
+    stopTimer: () => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const committed = withCommittedElapsed(current, timestamp);
+        const normalizedConfig = normalizePomodoroConfig(committed.pomodoroConfig);
+        return {
+          ...committed,
+          activeTaskId: null,
+          activeCalendarEventId: null,
+          sessionSeconds: 0,
+          pomodoroConfig: normalizedConfig,
+          timerTotalSeconds: getPomodoroDurationSeconds(normalizedConfig, "focus"),
+          timerAlert: null,
+          pomodoroPhase: "focus",
+          pomodoroCompletedFocusBlocks: 0,
+          showFloatingTimer: false,
+        };
+      });
+    },
+
+    resetToday: () => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => ({
+        ...archiveDay(current, current.currentDayKey, timestamp),
+        showFloatingTimer: false,
+      }));
+    },
+
+    setTimerMode: (value) => {
+      update((current) => ({
+        ...current,
+        pomodoroConfig: normalizePomodoroConfig(current.pomodoroConfig),
+        timerMode: value,
+        timerAlert: null,
+        pomodoroPhase: "focus",
+        pomodoroCompletedFocusBlocks: value === "pomodoro" ? current.pomodoroCompletedFocusBlocks : 0,
+        timerTotalSeconds: value === "pomodoro" ? getPomodoroDurationSeconds(normalizePomodoroConfig(current.pomodoroConfig), "focus") : current.timerTotalSeconds,
+      }));
+    },
+
+    updatePomodoroConfig: (key, value) => {
+      update((current) => {
+        const currentConfig = normalizePomodoroConfig(current.pomodoroConfig);
+        const fallbackValue = currentConfig[key];
+        const normalizedValue = key === "workMinutes"
+          ? Math.max(1, Math.min(180, Math.floor(Number.isFinite(value) ? value : fallbackValue)))
+          : key === "breakMinutes"
+            ? Math.max(0, Math.min(60, Math.floor(Number.isFinite(value) ? value : fallbackValue)))
+            : Math.max(1, Math.min(12, Math.floor(Number.isFinite(value) ? value : fallbackValue)));
+        const pomodoroConfig = { ...currentConfig, [key]: normalizedValue };
+
+        return {
+          ...current,
+          pomodoroConfig,
+          timerTotalSeconds: current.timerMode === "pomodoro" && !current.isRunning
+            ? getPomodoroDurationSeconds(pomodoroConfig, current.pomodoroPhase)
+            : current.timerTotalSeconds,
+        };
+      });
+    },
+
+    dismissTimerAlert: () => update((current) => ({ ...current, timerAlert: null })),
+    setShowFloatingTimer: (value) => update((current) => ({
+      ...current,
+      showFloatingTimer: value,
+      timerExpanded: value ? current.timerExpanded : false,
+    })),
+    setTimerExpanded: (value) => update((current) => ({ ...current, timerExpanded: value })),
+
+    setCompactMode: (value) => update((current) => ({ ...current, compactMode: value })),
+    setAccent: (value) => update((current) => ({ ...current, accent: value })),
+    setThemeMode: (value) => update((current) => ({ ...current, themeMode: value })),
+    setFontStyle: (value) => update((current) => ({ ...current, fontStyle: value })),
+
+    addCalendarEvent: (event) => {
+      update((current) => ({
+        ...current,
+        calendarEvents: [...current.calendarEvents, createCalendarEvent(event)],
+      }));
+    },
+
+    addCalendarEvents: (events) => {
+      if (events.length === 0) {
+        return;
+      }
+
+      update((current) => ({
+        ...current,
+        calendarEvents: [...current.calendarEvents, ...events.map((event) => createCalendarEvent(event))],
+      }));
+    },
+
+    updateCalendarEvent: (eventId, patch) => {
+      update((current) => ({
+        ...current,
+        calendarEvents: current.calendarEvents.map((event) =>
+          event.id === eventId
+            ? {
+                ...event,
+                ...patch,
+                updatedAt: Date.now(),
+              }
+            : event,
+        ),
+      }));
+    },
+
+    deleteCalendarEvent: (eventId) => {
+      const timestamp = Date.now();
+      set({ now: timestamp });
+      update((current) => {
+        const isActiveCalendarEvent = current.activeCalendarEventId === eventId;
+        const committed = isActiveCalendarEvent ? withCommittedElapsed(current, timestamp) : current;
+
+        return {
+          ...committed,
+          calendarEvents: committed.calendarEvents.filter((event) => event.id !== eventId),
+          activeCalendarEventId: isActiveCalendarEvent ? null : committed.activeCalendarEventId,
+          isRunning: isActiveCalendarEvent ? false : committed.isRunning,
+          runningSince: isActiveCalendarEvent ? null : committed.runningSince,
+          sessionSeconds: isActiveCalendarEvent ? 0 : committed.sessionSeconds,
+        };
+      });
+    },
+
+    rescheduleCalendarEvent: (eventId, startDayKey, startTime) => {
+      update((current) => ({
+        ...current,
+        calendarEvents: current.calendarEvents.map((event) => {
+          if (event.id !== eventId) {
+            return event;
+          }
+
+          const currentStart = timeValueToMinutes(event.startTime);
+          const currentEnd = timeValueToMinutes(event.endTime);
+          const durationMinutes = Math.max(15, currentEnd - currentStart);
+          const nextStart = timeValueToMinutes(startTime);
+
+          return {
+            ...event,
+            startDayKey,
+            endDayKey: startDayKey,
+            startTime,
+            endTime: minutesToTimeValue(nextStart + durationMinutes),
+            updatedAt: Date.now(),
+          };
+        }),
+      }));
+    },
+
+    addCalendarBlock: (block) => {
+      update((current) => ({
+        ...current,
+        calendarBlocks: [...current.calendarBlocks, createCalendarBlock(block)],
+      }));
+    },
+
+    deleteCalendarBlock: (blockId) => {
+      update((current) => ({
+        ...current,
+        calendarBlocks: current.calendarBlocks.filter((block) => block.id !== blockId),
+      }));
+    },
+  };
+});
+
+// Clear the active task if it disappears or completes (web hook effect parity).
+useExecutionStore.subscribe((store, previous) => {
+  const { state } = store;
+  if (!store.hydrated || state === previous.state || !state.activeTaskId) {
+    return;
+  }
+
+  if (!state.tasks.some((task) => task.id === state.activeTaskId && !task.completed)) {
+    useExecutionStore.setState({
+      state: { ...state, activeTaskId: null, isRunning: false, runningSince: null, sessionSeconds: 0 },
+    });
+  }
+});
+
+// Keep the scheduled pomodoro phase-end local notification in sync with timer
+// state. This single subscription covers every timer transition (start, resume,
+// phase advance -> reschedule the next boundary; pause, stop, complete, skip,
+// mode change, task removal -> cancel) without awaiting inside any action, so
+// set() stays synchronous. Notification calls are fire-and-forget (void).
+//
+// Only the NEXT phase boundary is scheduled while the app is backgrounded; the
+// foreground resync (ExecutionRuntime) advances phases and reschedules from there.
+let lastPhaseEndKey: string | null = null;
+useExecutionStore.subscribe((store, previous) => {
+  if (!store.hydrated || store.state === previous.state) {
+    return;
+  }
+
+  const { state } = store;
+  const canSchedule =
+    state.timerMode === "pomodoro" &&
+    state.isRunning &&
+    state.runningSince !== null &&
+    !state.activeCalendarEventId &&
+    state.timerTotalSeconds > 0;
+
+  // De-dupe: only act when the phase boundary actually changes, so unrelated
+  // state edits (notes, habits, etc.) don't churn the scheduled notification.
+  const key = canSchedule
+    ? `${state.runningSince}:${state.timerTotalSeconds}:${state.pomodoroPhase}`
+    : "none";
+  if (key === lastPhaseEndKey) {
+    return;
+  }
+  lastPhaseEndKey = key;
+
+  if (!canSchedule) {
+    void cancelPomodoroPhaseEndNotifications();
+    return;
+  }
+
+  const config = normalizePomodoroConfig(state.pomodoroConfig);
+  // timerTotalSeconds already holds the remaining seconds after any pause/resume,
+  // so the boundary is uniformly runningSince + timerTotalSeconds.
+  const fireAt = new Date((state.runningSince as number) + state.timerTotalSeconds * 1000);
+  void (async () => {
+    await cancelPomodoroPhaseEndNotifications();
+    await schedulePomodoroPhaseEndNotification(fireAt, state.pomodoroPhase, config.breakMinutes);
+  })();
+});
+
+// Persist AppState (debounced) and day-module selection on change.
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+useExecutionStore.subscribe((store, previous) => {
+  if (!store.hydrated) {
+    return;
+  }
+
+  if (store.state !== previous.state) {
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+    }
+    persistTimer = setTimeout(() => {
+      storeState(useExecutionStore.getState().state).catch(() => {});
+    }, 250);
+  }
+
+  if (store.dayModules !== previous.dayModules) {
+    storeDayModules(JSON.stringify(store.dayModules)).catch(() => {});
+  }
+});
+
+
+===== .\src\store\derived.ts =====
+
+import { useMemo } from "react";
+
+import { getDayKey } from "../model/defaults";
+import {
+  buildSnapshot,
+  getCalendarEventDurationSeconds,
+  getCompletedTasksForDay,
+  getDaysWonCount,
+  getDerivedElapsedSeconds,
+  isCalendarEventOnDay,
+  isSnapshotWon,
+} from "../model/logic";
+import { formatDateLabel } from "../model/time";
+import type { CalendarEvent, DailySnapshot, Task, WeeklyPoint } from "../model/types";
+import { useExecutionStore } from "./executionStore";
+
+export function useAppState() {
+  return useExecutionStore((store) => store.state);
+}
+
+export function useNow() {
+  return useExecutionStore((store) => store.now);
+}
+
+export function useDerivedFocusElapsedSeconds() {
+  const state = useAppState();
+  const now = useNow();
+  const derivedElapsedSeconds = getDerivedElapsedSeconds(state, now);
+  return state.timerMode === "pomodoro" && state.pomodoroPhase !== "focus" ? 0 : derivedElapsedSeconds;
+}
+
+export function useActiveTask(): Task | null {
+  const state = useAppState();
+  return useMemo(() => state.tasks.find((task) => task.id === state.activeTaskId) ?? null, [state.tasks, state.activeTaskId]);
+}
+
+export function useActiveCalendarEvent(): CalendarEvent | null {
+  const state = useAppState();
+  return useMemo(
+    () => state.calendarEvents.find((event) => event.id === state.activeCalendarEventId) ?? null,
+    [state.calendarEvents, state.activeCalendarEventId],
+  );
+}
+
+// Tasks with the running task's live seconds folded in.
+export function useLiveTasks(): Task[] {
+  const state = useAppState();
+  const derivedFocusElapsedSeconds = useDerivedFocusElapsedSeconds();
+
+  return useMemo(
+    () =>
+      state.tasks.map((task) =>
+        task.id === state.activeTaskId && state.isRunning
+          ? { ...task, secondsSpent: task.secondsSpent + derivedFocusElapsedSeconds }
+          : task,
+      ),
+    [derivedFocusElapsedSeconds, state.activeTaskId, state.isRunning, state.tasks],
+  );
+}
+
+export function useSessionSeconds() {
+  const state = useAppState();
+  return state.sessionSeconds + useDerivedFocusElapsedSeconds();
+}
+
+export function useTodayFocusSeconds() {
+  const state = useAppState();
+  return state.todayFocusSeconds + useDerivedFocusElapsedSeconds();
+}
+
+export function useTimerDisplaySeconds() {
+  const state = useAppState();
+  const now = useNow();
+  const activeCalendarEvent = useActiveCalendarEvent();
+  const sessionSeconds = useSessionSeconds();
+  const derivedElapsedSeconds = getDerivedElapsedSeconds(state, now);
+
+  if (activeCalendarEvent) {
+    return Math.max(0, getCalendarEventDurationSeconds(activeCalendarEvent) - sessionSeconds);
+  }
+
+  if (state.timerMode === "pomodoro") {
+    return Math.max(0, state.timerTotalSeconds - derivedElapsedSeconds);
+  }
+
+  return sessionSeconds;
+}
+
+export function useCompletedTasksCount() {
+  const state = useAppState();
+  const tasks = useLiveTasks();
+  return getCompletedTasksForDay(tasks, state.currentDayKey).length;
+}
+
+export function useCompletedHabitsCount() {
+  const state = useAppState();
+  return state.habits.filter((habit) => habit.checked).length;
+}
+
+export function useTodayDateLabel() {
+  const currentDayKey = useExecutionStore((store) => store.state.currentDayKey);
+  return useMemo(() => formatDateLabel(new Date(), { weekday: "long", day: "numeric", month: "long" }), [currentDayKey]);
+}
+
+export function useCurrentMonthLabel() {
+  const currentDayKey = useExecutionStore((store) => store.state.currentDayKey);
+  return useMemo(() => formatDateLabel(new Date(), { month: "long", year: "numeric" }), [currentDayKey]);
+}
+
+export function useWeeklyPoints(): WeeklyPoint[] {
+  const state = useAppState();
+  const derivedFocusElapsedSeconds = useDerivedFocusElapsedSeconds();
+
+  return useMemo(() => {
+    const points: WeeklyPoint[] = [];
+
+    for (let index = 6; index >= 0; index -= 1) {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - index);
+
+      const dayKey = getDayKey(date);
+      const snapshot = dayKey === state.currentDayKey ? buildSnapshot(state, derivedFocusElapsedSeconds) : state.dailySnapshots[dayKey];
+      const focusMinutes = Math.round((snapshot?.focusSeconds ?? 0) / 60);
+      const won = Boolean(snapshot && isSnapshotWon(snapshot));
+
+      points.push({
+        day: formatDateLabel(date, { weekday: "short" }),
+        focus: focusMinutes,
+        won,
+      });
+    }
+
+    return points;
+  }, [derivedFocusElapsedSeconds, state]);
+}
+
+export function useDaysWon() {
+  const state = useAppState();
+  const derivedFocusElapsedSeconds = useDerivedFocusElapsedSeconds();
+
+  return useMemo(() => {
+    const weeklySnapshots: DailySnapshot[] = [];
+
+    for (let index = 6; index >= 0; index -= 1) {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - index);
+      const snapshot = state.dailySnapshots[getDayKey(date)];
+      if (snapshot) {
+        weeklySnapshots.push(snapshot);
+      }
+    }
+
+    const combined = weeklySnapshots
+      .concat(buildSnapshot(state, derivedFocusElapsedSeconds))
+      .filter((item, index, array) => array.findIndex((candidate) => candidate.dayKey === item.dayKey) === index);
+
+    return getDaysWonCount(combined);
+  }, [derivedFocusElapsedSeconds, state]);
+}
+
+export function useWeeklyFocusMinutes() {
+  const weeklyPoints = useWeeklyPoints();
+  return weeklyPoints.reduce((sum, item) => sum + item.focus, 0);
+}
+
+export function useMonthlyFocusMinutes() {
+  const state = useAppState();
+  const derivedFocusElapsedSeconds = useDerivedFocusElapsedSeconds();
+
+  return useMemo(() => {
+    const currentMonthKey = state.currentDayKey.slice(0, 7);
+    const archivedMonthSeconds = Object.entries(state.dailySnapshots).reduce((sum, [dayKey, snapshot]) => {
+      if (dayKey === state.currentDayKey || !dayKey.startsWith(currentMonthKey)) {
+        return sum;
+      }
+
+      return sum + snapshot.focusSeconds;
+    }, 0);
+
+    return Math.round((archivedMonthSeconds + buildSnapshot(state, derivedFocusElapsedSeconds).focusSeconds) / 60);
+  }, [derivedFocusElapsedSeconds, state]);
+}
+
+export function useHistoryEntries() {
+  const dailyHistory = useExecutionStore((store) => store.state.dailyHistory);
+  return useMemo(
+    () => Object.values(dailyHistory).sort((left, right) => right.dayKey.localeCompare(left.dayKey)),
+    [dailyHistory],
+  );
+}
+
+// Today's agenda: calendar events occurring today, sorted by start time.
+export function useTodayAgenda() {
+  const state = useAppState();
+
+  return useMemo(() => {
+    const todayKey = state.currentDayKey;
+    return state.calendarEvents
+      .filter((event) => isCalendarEventOnDay(event, todayKey))
+      .sort((left, right) => left.startTime.localeCompare(right.startTime));
+  }, [state.calendarEvents, state.currentDayKey]);
+}
+
+// Agenda events with a focus session logged today count as done.
+export function useCompletedAgendaIds() {
+  const state = useAppState();
+
+  return useMemo(() => {
+    const todayKey = state.currentDayKey;
+    const ids = new Set<string>();
+    for (const session of state.focusSessions) {
+      if (getDayKey(new Date(session.endedAt)) === todayKey) {
+        ids.add(session.taskId);
+      }
+    }
+    return ids;
+  }, [state.focusSessions, state.currentDayKey]);
+}
+
+export function useDayOutcomeByKey() {
+  const state = useAppState();
+  const derivedFocusElapsedSeconds = useDerivedFocusElapsedSeconds();
+
+  return useMemo(() => {
+    const outcomes = new Map<string, { hasData: boolean; won: boolean }>();
+
+    for (const [dayKey, snapshot] of Object.entries(state.dailySnapshots)) {
+      outcomes.set(dayKey, { hasData: true, won: isSnapshotWon(snapshot) });
+    }
+
+    const todaySnapshot = buildSnapshot(state, derivedFocusElapsedSeconds);
+    outcomes.set(state.currentDayKey, {
+      hasData: todaySnapshot.focusSeconds > 0 || todaySnapshot.completedHabits > 0 || todaySnapshot.completedTasks > 0,
+      won: isSnapshotWon(todaySnapshot),
+    });
+
+    return outcomes;
+  }, [derivedFocusElapsedSeconds, state]);
+}
+
+
+===== .\src\sync\cloudState.ts =====
+
+import type { AppState } from "../model/types";
+import { supabase } from "../lib/supabase";
+import type { DayModuleId } from "../store/executionStore";
+
+export type CloudAppState = {
+  state: unknown;
+  day_modules: unknown;
+  updated_at: string | null;
+};
+
+export async function fetchCloudAppState(userId: string): Promise<CloudAppState | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("user_app_state")
+    .select("state, day_modules, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function upsertCloudAppState(userId: string, state: AppState, dayModules: DayModuleId[]) {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("user_app_state")
+    .upsert(
+      {
+        user_id: userId,
+        state,
+        day_modules: dayModules,
+        local_schema_version: 1,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+
+===== .\src\sync\SupabaseSyncBootstrap.tsx =====
+
+MISSING: .\src\sync\SupabaseSyncBootstrap.tsx
+
+
+===== .\src\auth\AuthProvider.tsx =====
+
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import * as Linking from "expo-linking";
+import type { Session, User } from "@supabase/supabase-js";
+
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
+
+type AuthContextValue = {
+  isConfigured: boolean;
+  loading: boolean;
+  session: Session | null;
+  user: User | null;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signOut: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function exchangeCodeFromUrl(url: string) {
+  if (!supabase) {
+    return;
+  }
+
+  const parsed = Linking.parse(url);
+  const code = parsed.queryParams?.code;
+  if (typeof code === "string" && code.length > 0) {
+    await supabase.auth.exchangeCodeForSession(code);
+  }
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (mounted) {
+          setSession(data.session);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        exchangeCodeFromUrl(url).catch(() => {});
+      }
+    });
+    const linkingSubscription = Linking.addEventListener("url", ({ url }) => {
+      exchangeCodeFromUrl(url).catch(() => {});
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+      linkingSubscription.remove();
+    };
+  }, []);
+
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error("Supabase is not configured yet.");
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const signUpWithPassword = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error("Supabase is not configured yet.");
+    }
+
+    const emailRedirectTo = Linking.createURL("auth");
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo },
+    });
+    if (error) {
+      throw error;
+    }
+
+    return { needsEmailConfirmation: !data.session };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) {
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      isConfigured: isSupabaseConfigured,
+      loading,
+      session,
+      user: session?.user ?? null,
+      signInWithPassword,
+      signUpWithPassword,
+      signOut,
+    }),
+    [loading, session, signInWithPassword, signOut, signUpWithPassword],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+  return context;
+}
+
+
+===== .\src\lib\supabase.ts =====
+
+import "react-native-url-polyfill/auto";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createClient, processLock } from "@supabase/supabase-js";
+import { AppState, Platform } from "react-native";
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabasePublishableKey =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl as string, supabasePublishableKey as string, {
+      auth: {
+        ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+        lock: processLock,
+      },
+    })
+  : null;
+
+if (Platform.OS !== "web" && supabase) {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh();
+      return;
+    }
+
+    supabase.auth.stopAutoRefresh();
+  });
+}
+
+
+===== .\src\screens\TasksScreen.tsx =====
+
+import React, { useState } from "react";
+import { Alert, Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Crosshair, MoreHorizontal, Pencil, Play, Plus, StickyNote, Trash2 } from "lucide-react-native";
+
+import { formatSeconds } from "../model/time";
+import type { Task } from "../model/types";
+import { useAppState, useLiveTasks } from "../store/derived";
+import { useExecutionStore } from "../store/executionStore";
+import { useTheme } from "../theme/ThemeContext";
+import { AppButton, AppTextInput, Card, CheckCircle, EmptyState, IconButton, MutedLabel, Row, Sheet } from "../ui/primitives";
+import { ScreenHeader } from "../components/ScreenHeader";
+
+function TaskRow({ task }: { task: Task }) {
+  const { tokens } = useTheme();
+  const state = useAppState();
+  const completeTask = useExecutionStore((store) => store.completeTask);
+  const deleteTask = useExecutionStore((store) => store.deleteTask);
+  const startTask = useExecutionStore((store) => store.startTask);
+  const saveTaskEdit = useExecutionStore((store) => store.saveTaskEdit);
+  const updateTaskNotes = useExecutionStore((store) => store.updateTaskNotes);
+
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+
+  const isActive = state.activeTaskId === task.id;
+
+  const commitEdit = () => {
+    saveTaskEdit(task.id, editTitle);
+    setEditing(false);
+  };
+
+  return (
+    <View
+      style={{
+        gap: 8,
+        borderRadius: 14,
+        borderLeftWidth: isActive ? 3 : 0,
+        borderLeftColor: tokens.accent,
+        backgroundColor: isActive ? tokens.accentSubtle : "transparent",
+        paddingVertical: 8,
+        paddingHorizontal: isActive ? 10 : 0,
+      }}
+    >
+      <Row gap={10}>
+        <CheckCircle checked={task.completed} onPress={() => completeTask(task.id)} />
+        <View style={{ flex: 1, gap: 2 }}>
+          {editing ? (
+            <AppTextInput
+              value={editTitle}
+              onChangeText={setEditTitle}
+              onSubmitEditing={commitEdit}
+              onBlur={commitEdit}
+              autoFocus
+            />
+          ) : (
+            <Pressable onLongPress={() => setEditing(true)}>
+              <Text
+                style={{
+                  color: task.completed ? tokens.textMuted : tokens.text,
+                  fontSize: 15,
+                  fontWeight: "600",
+                  textDecorationLine: task.completed ? "line-through" : "none",
+                }}
+              >
+                {task.title}
+              </Text>
+            </Pressable>
+          )}
+          <Text style={{ color: tokens.textMuted, fontSize: 12, fontVariant: ["tabular-nums"] }}>
+            {formatSeconds(task.secondsSpent)}
+          </Text>
+        </View>
+        <IconButton onPress={() => startTask(task.id)} disabled={task.completed} accessibilityLabel="Start focus">
+          <Play size={14} color={task.completed ? tokens.textMuted : tokens.accent} />
+        </IconButton>
+        <IconButton
+          onPress={() => setActionsOpen((open) => !open)}
+          accessibilityLabel="More actions"
+          style={actionsOpen ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent } : undefined}
+        >
+          <MoreHorizontal size={14} color={actionsOpen ? tokens.accent : tokens.textMuted} />
+        </IconButton>
+      </Row>
+      {actionsOpen ? (
+        <Row gap={8} style={{ paddingLeft: 36, flexWrap: "wrap" }}>
+          <AppButton
+            label={notesOpen ? "Hide notes" : "Notes"}
+            small
+            variant="outline"
+            icon={<StickyNote size={13} color={task.notes ? tokens.accent : tokens.text} />}
+            onPress={() => setNotesOpen((open) => !open)}
+          />
+          <AppButton
+            label="Edit"
+            small
+            variant="outline"
+            icon={<Pencil size={13} color={tokens.text} />}
+            onPress={() => setEditing(true)}
+          />
+          <AppButton
+            label="Delete"
+            small
+            variant="danger"
+            icon={<Trash2 size={13} color={tokens.danger} />}
+            onPress={() => deleteTask(task.id)}
+          />
+        </Row>
+      ) : null}
+      {notesOpen ? (
+        <AppTextInput
+          placeholder="Working notes for this task"
+          value={task.notes}
+          onChangeText={(value) => updateTaskNotes(task.id, value)}
+          multiline
+        />
+      ) : null}
+    </View>
+  );
+}
+
+export function TasksScreen() {
+  const { tokens } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const state = useAppState();
+  const tasks = useLiveTasks();
+  const addTask = useExecutionStore((store) => store.addTask);
+  const addTaskGroup = useExecutionStore((store) => store.addTaskGroup);
+  const saveTaskGroupEdit = useExecutionStore((store) => store.saveTaskGroupEdit);
+  const deleteTaskGroup = useExecutionStore((store) => store.deleteTaskGroup);
+
+  const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
+  const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupTitle, setEditingGroupTitle] = useState("");
+
+  const visibleGroups = focusedGroupId
+    ? state.taskGroups.filter((group) => group.id === focusedGroupId)
+    : state.taskGroups;
+
+  const confirmDeleteGroup = (groupId: string, title: string) => {
+    Alert.alert("Delete section", `Delete "${title}" and all its tasks?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deleteTaskGroup(groupId);
+          if (focusedGroupId === groupId) {
+            setFocusedGroupId(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: tokens.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 160, gap: 16 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ScreenHeader title="Tasks" />
+
+        {focusedGroupId ? (
+          <Card style={{ backgroundColor: tokens.accentSubtle }}>
+            <Row style={{ justifyContent: "space-between" }}>
+              <Text style={{ color: tokens.text, fontSize: 13 }}>
+                Focus mode is active for {state.taskGroups.find((group) => group.id === focusedGroupId)?.title ?? "section"}.
+              </Text>
+              <AppButton label="Exit focus" small variant="outline" onPress={() => setFocusedGroupId(null)} />
+            </Row>
+          </Card>
+        ) : null}
+
+        {state.taskGroups.length === 0 ? (
+          <EmptyState message="No task sections yet. Create one to start organizing work by function." />
+        ) : (
+          visibleGroups.map((group) => {
+            const groupTasks = tasks.filter((task) => task.groupId === group.id);
+            return (
+              <Card key={group.id} style={{ gap: 12 }}>
+                <Row style={{ justifyContent: "space-between" }}>
+                  {editingGroupId === group.id ? (
+                    <AppTextInput
+                      value={editingGroupTitle}
+                      onChangeText={setEditingGroupTitle}
+                      onSubmitEditing={() => {
+                        saveTaskGroupEdit(group.id, editingGroupTitle);
+                        setEditingGroupId(null);
+                      }}
+                      onBlur={() => {
+                        saveTaskGroupEdit(group.id, editingGroupTitle);
+                        setEditingGroupId(null);
+                      }}
+                      autoFocus
+                      style={{ flex: 1 }}
+                    />
+                  ) : (
+                    <Text style={{ color: tokens.text, fontSize: 18, fontWeight: "700", flex: 1 }}>{group.title}</Text>
+                  )}
+                  <Row gap={6}>
+                    <IconButton
+                      onPress={() => setFocusedGroupId(focusedGroupId === group.id ? null : group.id)}
+                      accessibilityLabel="Focus section"
+                    >
+                      <Crosshair size={14} color={focusedGroupId === group.id ? tokens.accent : tokens.textMuted} />
+                    </IconButton>
+                    <IconButton
+                      onPress={() => {
+                        setEditingGroupId(group.id);
+                        setEditingGroupTitle(group.title);
+                      }}
+                      accessibilityLabel="Rename section"
+                    >
+                      <Pencil size={14} color={tokens.textMuted} />
+                    </IconButton>
+                    <IconButton onPress={() => confirmDeleteGroup(group.id, group.title)} accessibilityLabel="Delete section">
+                      <Trash2 size={14} color={tokens.danger} />
+                    </IconButton>
+                  </Row>
+                </Row>
+
+                {groupTasks.length === 0 ? (
+                  <EmptyState message="No tasks in this section yet." />
+                ) : (
+                  groupTasks.map((task) => <TaskRow key={task.id} task={task} />)
+                )}
+
+                <Row gap={8}>
+                  <AppTextInput
+                    placeholder="Add a task"
+                    value={groupDrafts[group.id] ?? ""}
+                    onChangeText={(value) => setGroupDrafts((drafts) => ({ ...drafts, [group.id]: value }))}
+                    onSubmitEditing={() => {
+                      addTask(group.id, groupDrafts[group.id] ?? "");
+                      setGroupDrafts((drafts) => ({ ...drafts, [group.id]: "" }));
+                    }}
+                    style={{ flex: 1 }}
+                    returnKeyType="done"
+                  />
+                  <AppButton
+                    label="Add"
+                    small
+                    onPress={() => {
+                      addTask(group.id, groupDrafts[group.id] ?? "");
+                      setGroupDrafts((drafts) => ({ ...drafts, [group.id]: "" }));
+                    }}
+                  />
+                </Row>
+              </Card>
+            );
+          })
+        )}
+
+        <AppButton
+          label="Add section"
+          variant="outline"
+          icon={<Plus size={16} color={tokens.text} />}
+          onPress={() => setAddSectionOpen(true)}
+          style={{ alignSelf: "flex-start" }}
+        />
+      </ScrollView>
+
+      <Sheet visible={addSectionOpen} onClose={() => setAddSectionOpen(false)} title="New section">
+        <MutedLabel>Section name</MutedLabel>
+        <AppTextInput
+          placeholder="e.g. Deep work"
+          value={newSectionTitle}
+          onChangeText={setNewSectionTitle}
+          autoFocus
+          onSubmitEditing={() => {
+            addTaskGroup(newSectionTitle);
+            setNewSectionTitle("");
+            setAddSectionOpen(false);
+          }}
+        />
+        <AppButton
+          label="Create section"
+          onPress={() => {
+            addTaskGroup(newSectionTitle);
+            setNewSectionTitle("");
+            setAddSectionOpen(false);
+          }}
+        />
+      </Sheet>
+    </View>
+  );
+}
+
+
+===== .\src\screens\TodayScreen.tsx =====
+
+import React, { useMemo, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Check, ChevronRight, Pause, Play, SlidersHorizontal } from "lucide-react-native";
+
+import { formatSeconds } from "../model/time";
+import {
+  useActiveCalendarEvent,
+  useAppState,
+  useCompletedAgendaIds,
+  useCompletedHabitsCount,
+  useCompletedTasksCount,
+  useTodayAgenda,
+  useTodayFocusSeconds,
+} from "../store/derived";
+import { DAY_MODULE_IDS, useExecutionStore, type DayModuleId } from "../store/executionStore";
+import { useTheme } from "../theme/ThemeContext";
+import { AppButton, AppTextInput, Card, CheckCircle, EmptyState, MutedLabel, Row, Sheet, StatTile, SwitchRow } from "../ui/primitives";
+import { ScreenHeader } from "../components/ScreenHeader";
+
+const DAY_MODULE_LABELS: Record<DayModuleId, string> = {
+  agenda: "Today's agenda",
+  next: "Up next",
+  goals: "Goals preview",
+  habits: "Habits",
+  stats: "Focus stats",
+  inputs: "Custom inputs",
+};
+
+export function TodayScreen() {
+  const { tokens, eventColors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const state = useAppState();
+  const todayAgenda = useTodayAgenda();
+  const completedAgendaIds = useCompletedAgendaIds();
+  const activeCalendarEvent = useActiveCalendarEvent();
+  const todayFocusSeconds = useTodayFocusSeconds();
+  const completedTasks = useCompletedTasksCount();
+  const completedHabits = useCompletedHabitsCount();
+
+  const dayModules = useExecutionStore((store) => store.dayModules);
+  const toggleDayModule = useExecutionStore((store) => store.toggleDayModule);
+  const startCalendarEvent = useExecutionStore((store) => store.startCalendarEvent);
+  const pauseTimer = useExecutionStore((store) => store.pauseTimer);
+  const toggleHabit = useExecutionStore((store) => store.toggleHabit);
+  const updateMetric = useExecutionStore((store) => store.updateMetric);
+
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+
+  const nextAgendaEvent = useMemo(() => {
+    if (activeCalendarEvent) {
+      return activeCalendarEvent;
+    }
+    return todayAgenda.find((event) => !completedAgendaIds.has(event.id)) ?? null;
+  }, [activeCalendarEvent, todayAgenda, completedAgendaIds]);
+
+  const isNextEventRunning = Boolean(
+    nextAgendaEvent && state.isRunning && state.activeCalendarEventId === nextAgendaEvent.id,
+  );
+
+  const enabled = (module: DayModuleId) => dayModules.includes(module);
+  const gap = state.compactMode ? 8 : 12;
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.bg }}
+      contentContainerStyle={{ padding: 18, paddingTop: insets.top + 10, paddingBottom: 140, gap }}
+    >
+      <ScreenHeader title="Today" />
+
+      <AppButton
+        label="Customize"
+        variant="outline"
+        small
+        icon={<SlidersHorizontal size={14} color={tokens.text} />}
+        onPress={() => setCustomizeOpen(true)}
+        style={{ alignSelf: "flex-start" }}
+      />
+
+      {enabled("next") ? (
+        <Card style={{ gap: 12 }}>
+          <MutedLabel>{isNextEventRunning ? "In progress" : "Up next"}</MutedLabel>
+          {nextAgendaEvent ? (
+            <>
+              <Text style={{ color: tokens.text, fontSize: 22, fontWeight: "700" }}>{nextAgendaEvent.title}</Text>
+              <Text style={{ color: tokens.textSecondary, fontSize: 13 }}>
+                {nextAgendaEvent.startTime} – {nextAgendaEvent.endTime}
+                {nextAgendaEvent.notes ? ` · ${nextAgendaEvent.notes}` : ""}
+              </Text>
+              {isNextEventRunning ? (
+                <AppButton
+                  label="Pause"
+                  onPress={pauseTimer}
+                  icon={<Pause size={15} color={tokens.onAccent} />}
+                  style={{ alignSelf: "flex-start" }}
+                />
+              ) : (
+                <AppButton
+                  label="Start task"
+                  onPress={() => startCalendarEvent(nextAgendaEvent.id)}
+                  icon={<Play size={15} color={tokens.onAccent} />}
+                  style={{ alignSelf: "flex-start" }}
+                />
+              )}
+            </>
+          ) : (
+            <Text style={{ color: tokens.textMuted, fontSize: 14 }}>
+              Your agenda is clear. Add a time block in Planner.
+            </Text>
+          )}
+        </Card>
+      ) : null}
+
+      {enabled("agenda") ? (
+        <Card style={{ gap: 12 }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <MutedLabel>Today's agenda</MutedLabel>
+            <Pressable onPress={() => router.push("/planner")} hitSlop={8}>
+              <Row gap={2}>
+                <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: "600" }}>Planner</Text>
+                <ChevronRight size={14} color={tokens.accent} />
+              </Row>
+            </Pressable>
+          </Row>
+          {todayAgenda.length === 0 ? (
+            <EmptyState message="Nothing planned for today yet." />
+          ) : (
+            todayAgenda.map((event, index) => {
+              const done = completedAgendaIds.has(event.id);
+              const palette = eventColors[event.color];
+              return (
+                <Row key={event.id} style={{ alignItems: "center" }} gap={12}>
+                  <View style={{ width: 44 }}>
+                    <Text style={{ color: tokens.textMuted, fontSize: 12, fontVariant: ["tabular-nums"] }}>{event.startTime}</Text>
+                  </View>
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: done ? palette.base : palette.soft,
+                    }}
+                  >
+                    {done ? (
+                      <Check size={14} color={palette.onBase} strokeWidth={3} />
+                    ) : (
+                      <Text style={{ color: palette.softText, fontSize: 12, fontWeight: "700" }}>{index + 1}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: done ? tokens.textMuted : tokens.text,
+                        fontSize: 15,
+                        fontWeight: "600",
+                        textDecorationLine: done ? "line-through" : "none",
+                      }}
+                    >
+                      {event.title}
+                    </Text>
+                    <Text style={{ color: tokens.textMuted, fontSize: 12 }}>
+                      {event.startTime} – {event.endTime}
+                    </Text>
+                  </View>
+                  <AppButton label="Start" small variant="outline" onPress={() => startCalendarEvent(event.id)} />
+                </Row>
+              );
+            })
+          )}
+        </Card>
+      ) : null}
+
+      {enabled("goals") ? (
+        <Card style={{ gap: 12 }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <MutedLabel>Goals</MutedLabel>
+            <Pressable onPress={() => router.push("/goals")} hitSlop={8}>
+              <Row gap={2}>
+                <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: "600" }}>All goals</Text>
+                <ChevronRight size={14} color={tokens.accent} />
+              </Row>
+            </Pressable>
+          </Row>
+          {([
+            { label: "This Week", bucket: "today" as const },
+            { label: "This Month", bucket: "month" as const },
+            { label: "Yearly", bucket: "vision" as const },
+          ]).map(({ label, bucket }) => (
+            <View key={bucket} style={{ gap: 4 }}>
+              <Text style={{ color: tokens.textMuted, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+              {state.goals[bucket].length === 0 ? (
+                <Pressable onPress={() => router.push("/goals")}>
+                  <Text style={{ color: tokens.accent, fontSize: 13 }}>+ Add a goal</Text>
+                </Pressable>
+              ) : (
+                state.goals[bucket].slice(0, 3).map((goal) => (
+                  <Text key={goal.id} style={{ color: tokens.text, fontSize: 14 }}>
+                    · {goal.title}
+                  </Text>
+                ))
+              )}
+            </View>
+          ))}
+        </Card>
+      ) : null}
+
+      {enabled("habits") ? (
+        <Card style={{ gap: 12 }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <MutedLabel>Habits</MutedLabel>
+            <Text style={{ color: tokens.textMuted, fontSize: 12 }}>
+              {completedHabits}/{state.habits.length} done today
+            </Text>
+          </Row>
+          {state.habits.length === 0 ? (
+            <EmptyState message="No habits yet. Add them in Stats." />
+          ) : (
+            state.habits.map((habit) => (
+              <Row key={habit.id} gap={12}>
+                <CheckCircle checked={habit.checked} onPress={() => toggleHabit(habit.id)} />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: habit.checked ? tokens.textMuted : tokens.text,
+                    fontSize: 15,
+                    textDecorationLine: habit.checked ? "line-through" : "none",
+                  }}
+                >
+                  {habit.label}
+                </Text>
+              </Row>
+            ))
+          )}
+        </Card>
+      ) : null}
+
+      {enabled("stats") ? (
+        <Row gap={12}>
+          <StatTile label="Focused" value={formatSeconds(todayFocusSeconds)} />
+          <StatTile label="Completed" value={String(completedTasks)} />
+        </Row>
+      ) : null}
+
+      {enabled("inputs") && state.metrics.length > 0 ? (
+        <Card style={{ gap: 12 }}>
+          <MutedLabel>Custom inputs</MutedLabel>
+          {state.metrics.map((metric) => (
+            <View key={metric.id} style={{ gap: 6 }}>
+              <Row style={{ justifyContent: "space-between" }}>
+                <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "600" }}>{metric.label}</Text>
+                {metric.target ? <Text style={{ color: tokens.textMuted, fontSize: 12 }}>Target: {metric.target}</Text> : null}
+              </Row>
+              <AppTextInput
+                placeholder={metric.type === "time" ? "e.g. 45m" : metric.type === "number" ? "e.g. 12" : "Value"}
+                value={metric.value}
+                onChangeText={(value) => updateMetric(metric.id, "value", value)}
+                keyboardType={metric.type === "number" ? "numeric" : "default"}
+              />
+            </View>
+          ))}
+        </Card>
+      ) : null}
+
+      <Sheet visible={customizeOpen} onClose={() => setCustomizeOpen(false)} title="Customize dashboard">
+        {DAY_MODULE_IDS.map((module) => (
+          <SwitchRow
+            key={module}
+            label={DAY_MODULE_LABELS[module]}
+            value={dayModules.includes(module)}
+            onValueChange={() => toggleDayModule(module)}
+          />
+        ))}
+      </Sheet>
+    </ScrollView>
+  );
+}
+
+
+===== .\src\screens\planner\PlannerScreen.tsx =====
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+
+import { AppText as Text } from "../../ui/AppText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Bell, ChevronLeft, ChevronRight, FileJson, LayoutTemplate, Plus, Repeat, Search, X } from "lucide-react-native";
+
+import type { CalendarImportEvent } from "../../model/calendar-import";
+import { getDayKey } from "../../model/defaults";
+import { addDays, dayKeyToDate, formatDateLabel, getMonthGridDates, getStartOfWeek, minutesToTimeValue, timeValueToMinutes } from "../../model/time";
+import type { CalendarBlock, CalendarEvent } from "../../model/types";
+import { useExecutionStore } from "../../store/executionStore";
+import { useTheme } from "../../theme/ThemeContext";
+import { AppButton, AppTextInput, EmptyState, IconButton, MutedLabel, Row, SegmentedControl, Sheet } from "../../ui/primitives";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import {
+  BlocksSheet,
+  EventDetailSheet,
+  EventEditorSheet,
+  JsonImportSheet,
+  RemindersSheet,
+} from "./PlannerSheets";
+import {
+  HOUR_HEIGHT,
+  createDraft,
+  draftFromEvent,
+  eventsOnDay,
+  getNextAvailableStartTime,
+  getTimedEventLayouts,
+  resolveNonOverlappingDraft,
+  type EventDraft,
+} from "./plannerUtils";
+
+type ViewMode = "month" | "week" | "day" | "agenda";
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+export function PlannerScreen() {
+  const { tokens, eventColors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  const calendarEvents = useExecutionStore((store) => store.state.calendarEvents);
+  const currentDayKey = useExecutionStore((store) => store.state.currentDayKey);
+  const addCalendarEvent = useExecutionStore((store) => store.addCalendarEvent);
+  const addCalendarEvents = useExecutionStore((store) => store.addCalendarEvents);
+  const updateCalendarEvent = useExecutionStore((store) => store.updateCalendarEvent);
+  const deleteCalendarEvent = useExecutionStore((store) => store.deleteCalendarEvent);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [cursorDate, setCursorDate] = useState(() => dayKeyToDate(currentDayKey));
+  const [query, setQuery] = useState("");
+  const [now, setNow] = useState(Date.now());
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [draft, setDraft] = useState<EventDraft>(() => createDraft(currentDayKey));
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+  const [slotTarget, setSlotTarget] = useState<{ dayKey: string; startTime: string } | null>(null);
+  const [blocksOpen, setBlocksOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const gridScrollRef = useRef<ScrollView | null>(null);
+  const autoScrolledFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const visibleEvents = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+      return calendarEvents;
+    }
+
+    return calendarEvents.filter(
+      (event) => event.title.toLowerCase().includes(trimmed) || event.notes.toLowerCase().includes(trimmed),
+    );
+  }, [calendarEvents, query]);
+
+  const todayKey = getDayKey();
+  const cursorDayKey = getDayKey(cursorDate);
+
+  const moveCursor = (direction: -1 | 1) => {
+    setCursorDate((current) => {
+      if (viewMode === "month") {
+        return new Date(current.getFullYear(), current.getMonth() + direction, 1);
+      }
+      if (viewMode === "day") {
+        return addDays(current, direction);
+      }
+      return addDays(current, direction * 7);
+    });
+  };
+
+  const rangeLabel = useMemo(() => {
+    if (viewMode === "agenda") {
+      return "Next 45 days";
+    }
+    if (viewMode === "month") {
+      return formatDateLabel(cursorDate, { month: "long", year: "numeric" });
+    }
+    if (viewMode === "day") {
+      return formatDateLabel(cursorDate, { weekday: "long", day: "numeric", month: "long" });
+    }
+    const weekStart = getStartOfWeek(cursorDate);
+    const weekEnd = addDays(weekStart, 6);
+    return `${formatDateLabel(weekStart, { month: "long", day: "numeric" })} – ${formatDateLabel(weekEnd, { day: "numeric" })}`;
+  }, [cursorDate, viewMode]);
+
+  const openCreate = (dayKey: string, startTime = "09:00") => {
+    const durationMinutes = 60;
+    const resolvedStart = getNextAvailableStartTime(visibleEvents, dayKey, startTime, durationMinutes);
+    setDraft(createDraft(dayKey, resolvedStart));
+    setEditorOpen(true);
+  };
+
+  const openEdit = (event: CalendarEvent) => {
+    setDetailEvent(null);
+    setDraft(draftFromEvent(event));
+    setEditorOpen(true);
+  };
+
+  const saveDraft = () => {
+    if (!draft.title.trim()) {
+      Alert.alert("Missing title", "Give the event a title before saving.");
+      return;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.startDayKey) || !/^\d{2}:\d{2}$/.test(draft.startTime) || !/^\d{2}:\d{2}$/.test(draft.endTime)) {
+      Alert.alert("Invalid date or time", "Use YYYY-MM-DD for dates and HH:mm for times.");
+      return;
+    }
+
+    const normalized: EventDraft = {
+      ...draft,
+      title: draft.title.trim(),
+      endDayKey: /^\d{4}-\d{2}-\d{2}$/.test(draft.endDayKey) && draft.endDayKey >= draft.startDayKey ? draft.endDayKey : draft.startDayKey,
+      endTime:
+        timeValueToMinutes(draft.endTime) > timeValueToMinutes(draft.startTime)
+          ? draft.endTime
+          : minutesToTimeValue(Math.min(24 * 60 - 1, timeValueToMinutes(draft.startTime) + 60)),
+      repeatEndDayKey: draft.repeat === "none" ? null : draft.repeatEndDayKey,
+    };
+
+    const resolved = resolveNonOverlappingDraft(calendarEvents, normalized);
+    const { id, ...payload } = resolved;
+
+    if (id) {
+      updateCalendarEvent(id, payload);
+    } else {
+      addCalendarEvent(payload);
+    }
+
+    setEditorOpen(false);
+  };
+
+  const confirmDelete = (event: CalendarEvent) => {
+    Alert.alert("Delete event", `Delete "${event.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deleteCalendarEvent(event.id);
+          setDetailEvent(null);
+          setEditorOpen(false);
+        },
+      },
+    ]);
+  };
+
+  const insertBlockAtSlot = (block: CalendarBlock) => {
+    if (!slotTarget) {
+      return;
+    }
+
+    const startTime = getNextAvailableStartTime(calendarEvents, slotTarget.dayKey, slotTarget.startTime, block.durationMinutes);
+    const startMinutes = timeValueToMinutes(startTime);
+    addCalendarEvent({
+      title: block.title,
+      startDayKey: slotTarget.dayKey,
+      endDayKey: slotTarget.dayKey,
+      startTime,
+      endTime: minutesToTimeValue(Math.min(24 * 60 - 1, startMinutes + block.durationMinutes)),
+      color: block.color,
+      notes: block.notes,
+      reminderMinutes: 10,
+      repeat: "none",
+      repeatEndDayKey: null,
+    });
+    setSlotTarget(null);
+    setBlocksOpen(false);
+  };
+
+  const handleImported = (events: CalendarImportEvent[]) => {
+    addCalendarEvents(events);
+    const first = events[0];
+    if (first) {
+      setCursorDate(dayKeyToDate(first.startDayKey));
+      setViewMode(events.length === 1 ? "day" : "week");
+    }
+  };
+
+  // Auto-scroll the time grid to the current time (once per view/day).
+  const scrollGridToNow = () => {
+    const key = `${viewMode}-${cursorDayKey}`;
+    if (autoScrolledFor.current === key) {
+      return;
+    }
+    autoScrolledFor.current = key;
+
+    const weekDates = viewMode === "week" ? Array.from({ length: 7 }, (_, i) => addDays(getStartOfWeek(cursorDate), i)) : [cursorDate];
+    const showsToday = weekDates.some((date) => getDayKey(date) === todayKey);
+    if (!showsToday) {
+      return;
+    }
+
+    const nowDate = new Date(now);
+    const offset = ((nowDate.getHours() * 60 + nowDate.getMinutes()) / 60) * HOUR_HEIGHT - 180;
+    gridScrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: false });
+  };
+
+  const renderEventCard = (event: CalendarEvent, top: number, height: number, columnWidth?: number) => {
+    const palette = eventColors[event.color];
+    const compact = height < 56 || (columnWidth !== undefined && columnWidth < 90);
+    return (
+      <Pressable
+        key={event.id}
+        onPress={() => setDetailEvent(event)}
+        style={{
+          position: "absolute",
+          top,
+          left: 2,
+          right: 2,
+          height,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: palette.base,
+          backgroundColor: palette.soft,
+          padding: compact ? 4 : 8,
+          overflow: "hidden",
+        }}
+      >
+        <Row gap={4}>
+          <Text style={{ color: palette.softText, fontSize: compact ? 10 : 12, fontWeight: "700", flex: 1 }} numberOfLines={1}>
+            {event.title}
+          </Text>
+          {event.repeat !== "none" ? <Repeat size={10} color={palette.softText} /> : null}
+        </Row>
+        {!compact ? (
+          <Text style={{ color: palette.softText, fontSize: 10, opacity: 0.8 }} numberOfLines={1}>
+            {event.startTime} – {event.endTime}
+          </Text>
+        ) : null}
+      </Pressable>
+    );
+  };
+
+  const renderTimeGrid = (dates: Date[]) => {
+    const nowDate = new Date(now);
+    const nowTop = ((nowDate.getHours() * 60 + nowDate.getMinutes()) / 60) * HOUR_HEIGHT;
+    // Full-bleed grid: hour gutter hugs the left screen edge, day columns fill
+    // the remaining width exactly so nothing is cut off on the right.
+    const gutter = 44;
+    const columnWidth = (width - gutter) / dates.length;
+
+    return (
+      <View style={{ flex: 1 }}>
+        <Row style={{ paddingLeft: gutter }} gap={0}>
+          {dates.map((date) => {
+            const dayKey = getDayKey(date);
+            const isToday = dayKey === todayKey;
+            return (
+              <Pressable
+                key={dayKey}
+                onPress={() => {
+                  setCursorDate(date);
+                  setViewMode("day");
+                }}
+                style={{ width: columnWidth, alignItems: "center", paddingVertical: 6 }}
+              >
+                <Text style={{ color: tokens.textMuted, fontSize: 10, textTransform: "uppercase" }}>
+                  {formatDateLabel(date, { weekday: "short" })}
+                </Text>
+                <View
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 999,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isToday ? tokens.accent : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isToday ? tokens.onAccent : tokens.text,
+                      fontSize: 13,
+                      fontWeight: "700",
+                      fontVariant: ["tabular-nums"],
+                    }}
+                  >
+                    {date.getDate()}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </Row>
+
+        <ScrollView ref={gridScrollRef} onLayout={scrollGridToNow} showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: "row", height: 24 * HOUR_HEIGHT, paddingBottom: 20 }}>
+            <View style={{ width: gutter }}>
+              {HOURS.map((hour) => (
+                <View key={hour} style={{ height: HOUR_HEIGHT, alignItems: "flex-end", paddingRight: 6 }}>
+                  <Text style={{ color: tokens.textMuted, fontSize: 10, fontVariant: ["tabular-nums"] }}>
+                    {String(hour).padStart(2, "0")}:00
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {dates.map((date) => {
+              const dayKey = getDayKey(date);
+              const isToday = dayKey === todayKey;
+              const layouts = getTimedEventLayouts(eventsOnDay(visibleEvents, dayKey));
+
+              return (
+                <View
+                  key={dayKey}
+                  style={{ width: columnWidth, borderLeftWidth: 0.5, borderLeftColor: tokens.border }}
+                >
+                  {HOURS.map((hour) => (
+                    <Pressable
+                      key={hour}
+                      onPress={() => setSlotTarget({ dayKey, startTime: `${String(hour).padStart(2, "0")}:00` })}
+                      style={{ height: HOUR_HEIGHT, borderBottomWidth: 0.5, borderBottomColor: tokens.border }}
+                    />
+                  ))}
+                  {layouts.map(({ event, top, height }) => renderEventCard(event, top, height, columnWidth))}
+                  {isToday ? (
+                    <View pointerEvents="none" style={{ position: "absolute", top: nowTop, left: 0, right: 0 }}>
+                      <View style={{ height: 2, backgroundColor: tokens.danger }} />
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: -3,
+                          left: -4,
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          backgroundColor: tokens.danger,
+                        }}
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderMonthView = () => {
+    const gridDates = getMonthGridDates(cursorDate.getFullYear(), cursorDate.getMonth());
+    const cellWidth = width / 7;
+
+    return (
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Row gap={0}>
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
+            <View key={label} style={{ width: cellWidth, alignItems: "center", paddingVertical: 6 }}>
+              <Text style={{ color: tokens.textMuted, fontSize: 10, textTransform: "uppercase" }}>{label}</Text>
+            </View>
+          ))}
+        </Row>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {gridDates.map((date) => {
+            const dayKey = getDayKey(date);
+            const inMonth = date.getMonth() === cursorDate.getMonth();
+            const isToday = dayKey === todayKey;
+            const dayEvents = eventsOnDay(visibleEvents, dayKey);
+
+            return (
+              <Pressable
+                key={dayKey}
+                onPress={() => {
+                  setCursorDate(date);
+                  setViewMode("day");
+                }}
+                onLongPress={() => openCreate(dayKey)}
+                style={{
+                  width: cellWidth,
+                  minHeight: 74,
+                  borderWidth: 0.5,
+                  borderColor: tokens.border,
+                  padding: 3,
+                  gap: 2,
+                  opacity: inMonth ? 1 : 0.4,
+                }}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 999,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isToday ? tokens.accent : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isToday ? tokens.onAccent : tokens.text,
+                      fontSize: 11,
+                      fontWeight: "600",
+                      fontVariant: ["tabular-nums"],
+                    }}
+                  >
+                    {date.getDate()}
+                  </Text>
+                </View>
+                {dayEvents.slice(0, 2).map((event) => {
+                  const palette = eventColors[event.color];
+                  return (
+                    <View key={event.id} style={{ borderRadius: 4, backgroundColor: palette.base, paddingHorizontal: 3, paddingVertical: 1 }}>
+                      <Text style={{ color: palette.onBase, fontSize: 8, fontWeight: "700" }} numberOfLines={1}>
+                        {event.title}
+                      </Text>
+                    </View>
+                  );
+                })}
+                {dayEvents.length > 2 ? (
+                  <Text style={{ color: tokens.textMuted, fontSize: 9 }}>+{dayEvents.length - 2} more</Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={{ color: tokens.textMuted, fontSize: 11, textAlign: "center", paddingVertical: 10 }}>
+          Tap a day to open it. Long-press to create an event.
+        </Text>
+      </ScrollView>
+    );
+  };
+
+  const renderAgendaView = () => {
+    const start = new Date(cursorDate);
+    start.setHours(0, 0, 0, 0);
+    const days: Array<{ date: Date; events: CalendarEvent[] }> = [];
+
+    for (let offset = 0; offset < 45; offset += 1) {
+      const date = addDays(start, offset);
+      const events = eventsOnDay(visibleEvents, getDayKey(date));
+      if (events.length > 0) {
+        days.push({ date, events });
+      }
+    }
+
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 140, paddingHorizontal: 18 }}>
+        {days.length === 0 ? (
+          <EmptyState message="No events match the current filters." />
+        ) : (
+          days.map(({ date, events }) => (
+            <View key={getDayKey(date)} style={{ gap: 6 }}>
+              <MutedLabel>{formatDateLabel(date, { weekday: "long", day: "numeric", month: "long" })}</MutedLabel>
+              {events.map((event) => {
+                const palette = eventColors[event.color];
+                return (
+                  <Pressable key={`${event.id}-${getDayKey(date)}`} onPress={() => setDetailEvent(event)}>
+                    <Row
+                      gap={10}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: tokens.border,
+                        borderRadius: 14,
+                        padding: 12,
+                        backgroundColor: palette.soft,
+                      }}
+                    >
+                      <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: palette.base }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>{event.title}</Text>
+                        <Text style={{ color: tokens.textMuted, fontSize: 12 }}>
+                          {event.startTime} – {event.endTime}
+                        </Text>
+                      </View>
+                      {event.repeat !== "none" ? <Repeat size={13} color={tokens.textMuted} /> : null}
+                    </Row>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))
+        )}
+      </ScrollView>
+    );
+  };
+
+  const weekDates = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(getStartOfWeek(cursorDate), index)),
+    [cursorDate],
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: tokens.bg, paddingTop: insets.top + 10 }}>
+      <View style={{ paddingHorizontal: 18, gap: 8 }}>
+        <ScreenHeader title="Planner" />
+
+        {/* Single compact control row: date navigation on the left (tap the
+            label to jump back to today), toolbar on the right. */}
+        <Row style={{ justifyContent: "space-between" }} gap={8}>
+          <Row gap={2} style={{ flexShrink: 1 }}>
+            <IconButton
+              onPress={() => moveCursor(-1)}
+              accessibilityLabel="Previous"
+              style={{ width: 30, height: 30, borderWidth: 0, backgroundColor: "transparent" }}
+            >
+              <ChevronLeft size={16} color={tokens.textSecondary} />
+            </IconButton>
+            <Pressable onPress={() => setCursorDate(new Date())} accessibilityLabel="Go to today" hitSlop={6}>
+              <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "700" }} numberOfLines={1}>
+                {rangeLabel}
+              </Text>
+            </Pressable>
+            <IconButton
+              onPress={() => moveCursor(1)}
+              accessibilityLabel="Next"
+              style={{ width: 30, height: 30, borderWidth: 0, backgroundColor: "transparent" }}
+            >
+              <ChevronRight size={16} color={tokens.textSecondary} />
+            </IconButton>
+          </Row>
+          <Row gap={6}>
+            <IconButton
+              onPress={() => setSearchOpen((open) => !open)}
+              accessibilityLabel="Search events"
+              style={[
+                { width: 30, height: 30 },
+                searchOpen || query.trim()
+                  ? { backgroundColor: tokens.accentSubtle, borderColor: tokens.accent }
+                  : null,
+              ]}
+            >
+              <Search size={15} color={searchOpen || query.trim() ? tokens.accent : tokens.textSecondary} />
+            </IconButton>
+            <IconButton onPress={() => setImportOpen(true)} accessibilityLabel="Import JSON" style={{ width: 30, height: 30 }}>
+              <FileJson size={15} color={tokens.textSecondary} />
+            </IconButton>
+            <IconButton
+              onPress={() => {
+                setSlotTarget(null);
+                setBlocksOpen(true);
+              }}
+              accessibilityLabel="Blocks"
+              style={{ width: 30, height: 30 }}
+            >
+              <LayoutTemplate size={15} color={tokens.textSecondary} />
+            </IconButton>
+            <IconButton onPress={() => setRemindersOpen(true)} accessibilityLabel="Reminders" style={{ width: 30, height: 30 }}>
+              <Bell size={15} color={tokens.textSecondary} />
+            </IconButton>
+          </Row>
+        </Row>
+
+        <SegmentedControl<ViewMode>
+          options={[
+            { value: "month", label: "Month" },
+            { value: "week", label: "Week" },
+            { value: "day", label: "Day" },
+            { value: "agenda", label: "Agenda" },
+          ]}
+          value={viewMode}
+          onChange={setViewMode}
+        />
+
+        {searchOpen ? (
+          <Row
+            gap={8}
+            style={{
+              borderWidth: 1,
+              borderColor: tokens.border,
+              borderRadius: 999,
+              backgroundColor: tokens.inputBg,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Search size={14} color={tokens.textMuted} />
+            <AppTextInput
+              placeholder="Search events and notes"
+              value={query}
+              onChangeText={setQuery}
+              autoFocus
+              style={{ flex: 1, borderWidth: 0, backgroundColor: "transparent", paddingHorizontal: 0 }}
+            />
+            <IconButton
+              onPress={() => {
+                setQuery("");
+                setSearchOpen(false);
+              }}
+              accessibilityLabel="Clear search"
+              style={{ width: 28, height: 28, borderWidth: 0, backgroundColor: "transparent" }}
+            >
+              <X size={14} color={tokens.textMuted} />
+            </IconButton>
+          </Row>
+        ) : null}
+      </View>
+
+      {/* Grids are full-bleed (no horizontal padding) so the calendar uses the
+          whole screen width; agenda keeps its own padding. */}
+      <View style={{ flex: 1, paddingTop: 8 }}>
+        {viewMode === "month" ? renderMonthView() : null}
+        {viewMode === "week" ? renderTimeGrid(weekDates) : null}
+        {viewMode === "day" ? renderTimeGrid([cursorDate]) : null}
+        {viewMode === "agenda" ? renderAgendaView() : null}
+      </View>
+
+      <Pressable
+        onPress={() => openCreate(cursorDayKey)}
+        style={{
+          position: "absolute",
+          right: 20,
+          bottom: 24 + insets.bottom,
+          width: 58,
+          height: 58,
+          borderRadius: 999,
+          backgroundColor: tokens.accent,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 8,
+        }}
+        accessibilityLabel="Create event"
+      >
+        <Plus size={26} color={tokens.onAccent} />
+      </Pressable>
+
+      <EventEditorSheet
+        visible={editorOpen}
+        draft={draft}
+        onChange={setDraft}
+        onSave={saveDraft}
+        onDelete={draft.id ? () => {
+          const event = calendarEvents.find((item) => item.id === draft.id);
+          if (event) {
+            confirmDelete(event);
+          }
+        } : null}
+        onClose={() => setEditorOpen(false)}
+      />
+
+      <EventDetailSheet
+        event={detailEvent}
+        onClose={() => setDetailEvent(null)}
+        onEdit={openEdit}
+        onDelete={confirmDelete}
+      />
+
+      <Sheet visible={slotTarget !== null} onClose={() => setSlotTarget(null)} title={slotTarget ? `${slotTarget.dayKey} · ${slotTarget.startTime}` : ""}>
+        <AppButton
+          label="New event here"
+          onPress={() => {
+            if (slotTarget) {
+              openCreate(slotTarget.dayKey, slotTarget.startTime);
+              setSlotTarget(null);
+            }
+          }}
+        />
+        <AppButton label="Insert a block here" variant="outline" onPress={() => setBlocksOpen(true)} />
+      </Sheet>
+
+      <BlocksSheet
+        visible={blocksOpen}
+        onClose={() => setBlocksOpen(false)}
+        onInsert={slotTarget ? insertBlockAtSlot : null}
+      />
+
+      <RemindersSheet visible={remindersOpen} onClose={() => setRemindersOpen(false)} />
+
+      <JsonImportSheet visible={importOpen} onClose={() => setImportOpen(false)} onImported={handleImported} />
+    </View>
+  );
+}
+
+
+===== .\src\screens\GoalsScreen.tsx =====
+
+import React from "react";
+import { ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
+import { Trash2 } from "lucide-react-native";
+
+import type { GoalBucketKey } from "../model/types";
+import { useAppState } from "../store/derived";
+import { useExecutionStore } from "../store/executionStore";
+import { useTheme } from "../theme/ThemeContext";
+import { AppButton, AppTextInput, Card, EmptyState, IconButton, Row } from "../ui/primitives";
+
+const BUCKETS: Array<{ bucket: GoalBucketKey; title: string; addLabel: string }> = [
+  { bucket: "vision", title: "Yearly", addLabel: "Add yearly goal" },
+  { bucket: "month", title: "This Month", addLabel: "Add this month goal" },
+  { bucket: "today", title: "This Week", addLabel: "Add this week goal" },
+];
+
+export function GoalsScreen() {
+  const { tokens } = useTheme();
+  const state = useAppState();
+  const updateGoalDraft = useExecutionStore((store) => store.updateGoalDraft);
+  const addGoal = useExecutionStore((store) => store.addGoal);
+  const removeGoal = useExecutionStore((store) => store.removeGoal);
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.bg }}
+      contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {BUCKETS.map(({ bucket, title, addLabel }) => (
+        <Card key={bucket} style={{ gap: 12 }}>
+          <Text style={{ color: tokens.text, fontSize: 19, fontWeight: "700" }}>{title}</Text>
+
+          {state.goals[bucket].length === 0 ? (
+            <EmptyState message="No goals set yet." />
+          ) : (
+            state.goals[bucket].map((goal) => (
+              <Row key={goal.id} style={{ alignItems: "flex-start" }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>{goal.title}</Text>
+                  {goal.note ? <Text style={{ color: tokens.textSecondary, fontSize: 13 }}>{goal.note}</Text> : null}
+                </View>
+                <IconButton onPress={() => removeGoal(bucket, goal.id)} accessibilityLabel="Delete goal">
+                  <Trash2 size={15} color={tokens.danger} />
+                </IconButton>
+              </Row>
+            ))
+          )}
+
+          <View style={{ gap: 8 }}>
+            <AppTextInput
+              placeholder={addLabel}
+              value={state.goalDrafts[bucket].title}
+              onChangeText={(value) => updateGoalDraft(bucket, "title", value)}
+            />
+            <AppTextInput
+              placeholder="Add note or constraint"
+              value={state.goalDrafts[bucket].note}
+              onChangeText={(value) => updateGoalDraft(bucket, "note", value)}
+              multiline
+            />
+            <AppButton label="+ Add goal" onPress={() => addGoal(bucket)} variant="outline" />
+          </View>
+        </Card>
+      ))}
+    </ScrollView>
+  );
+}
+
+
+===== .\src\screens\JournalScreen.tsx =====
+
+import React, { useEffect, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
+import { X } from "lucide-react-native";
+
+import { useAppState } from "../store/derived";
+import { useExecutionStore } from "../store/executionStore";
+import { useTheme } from "../theme/ThemeContext";
+import { AppButton, AppTextInput, Card, EmptyState, MutedLabel, Row, SegmentedControl } from "../ui/primitives";
+
+export function JournalScreen() {
+  const { tokens } = useTheme();
+  const state = useAppState();
+  const setJournal = useExecutionStore((store) => store.setJournal);
+  const setMonthlyJournal = useExecutionStore((store) => store.setMonthlyJournal);
+  const addPrompt = useExecutionStore((store) => store.addPrompt);
+  const removePrompt = useExecutionStore((store) => store.removePrompt);
+  const setHardestTask = useExecutionStore((store) => store.setHardestTask);
+  const setFirstStep = useExecutionStore((store) => store.setFirstStep);
+
+  const [entryType, setEntryType] = useState<"daily" | "monthly">("daily");
+  const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
+  const [newPrompt, setNewPrompt] = useState("");
+
+  const prompts = state.prompts[entryType];
+
+  useEffect(() => {
+    if (!selectedPrompt || !prompts.includes(selectedPrompt)) {
+      setSelectedPrompt(prompts[0] ?? null);
+    }
+  }, [prompts, selectedPrompt]);
+
+  const journalValue = entryType === "daily" ? state.journal : state.monthlyJournal;
+  const setJournalValue = entryType === "daily" ? setJournal : setMonthlyJournal;
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.bg }}
+      contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <SegmentedControl
+        options={[
+          { value: "daily", label: "Daily entry" },
+          { value: "monthly", label: "Monthly entry" },
+        ]}
+        value={entryType}
+        onChange={setEntryType}
+      />
+
+      <Card style={{ gap: 12 }}>
+        <MutedLabel>Prompts</MutedLabel>
+        {prompts.length === 0 ? (
+          <EmptyState message="Add a prompt to guide your reflection." />
+        ) : (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {prompts.map((prompt) => {
+              const active = prompt === selectedPrompt;
+              return (
+                <Pressable
+                  key={prompt}
+                  onPress={() => setSelectedPrompt(prompt)}
+                  onLongPress={() => removePrompt(entryType, prompt)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: active ? tokens.accent : tokens.border,
+                    backgroundColor: active ? tokens.accentSubtle : "transparent",
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <Text style={{ color: active ? tokens.text : tokens.textSecondary, fontSize: 13 }}>{prompt}</Text>
+                  {active ? (
+                    <Pressable onPress={() => removePrompt(entryType, prompt)} hitSlop={8}>
+                      <X size={12} color={tokens.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        <Row gap={8}>
+          <AppTextInput
+            placeholder={entryType === "daily" ? "Add daily prompt" : "Add monthly prompt"}
+            value={newPrompt}
+            onChangeText={setNewPrompt}
+            onSubmitEditing={() => {
+              addPrompt(entryType, newPrompt);
+              setNewPrompt("");
+            }}
+            style={{ flex: 1 }}
+          />
+          <AppButton
+            label="Add"
+            small
+            onPress={() => {
+              addPrompt(entryType, newPrompt);
+              setNewPrompt("");
+            }}
+          />
+        </Row>
+      </Card>
+
+      <Card style={{ gap: 12 }}>
+        {selectedPrompt ? (
+          <View
+            style={{
+              borderRadius: 14,
+              backgroundColor: tokens.accentSubtle,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              padding: 12,
+            }}
+          >
+            <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "600" }}>{selectedPrompt}</Text>
+          </View>
+        ) : null}
+        <AppTextInput
+          placeholder="Write it down. Short and honest beats long and vague."
+          value={journalValue}
+          onChangeText={setJournalValue}
+          multiline
+          style={{ minHeight: 220 }}
+        />
+      </Card>
+
+      {entryType === "daily" ? (
+        <Card style={{ gap: 12 }}>
+          <MutedLabel>Day setup</MutedLabel>
+          <View style={{ gap: 6 }}>
+            <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "600" }}>Hardest task today</Text>
+            <AppTextInput placeholder="The one thing you're most likely to avoid" value={state.hardestTask} onChangeText={setHardestTask} />
+          </View>
+          <View style={{ gap: 6 }}>
+            <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "600" }}>First step</Text>
+            <AppTextInput placeholder="The 2-minute move that starts it" value={state.firstStep} onChangeText={setFirstStep} />
+          </View>
+        </Card>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+
+===== .\src\screens\SettingsScreen.tsx =====
+
+import React, { useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+
+import { AppText as Text } from "../ui/AppText";
+import { Trash2 } from "lucide-react-native";
+
+import type { AccentKey, FontStyleId, MetricType, ThemeMode } from "../model/types";
+import { useAppState } from "../store/derived";
+import { useExecutionStore } from "../store/executionStore";
+import { useTheme } from "../theme/ThemeContext";
+import { ACCENT_LABELS } from "../theme/tokens";
+import { AppButton, AppTextInput, Card, IconButton, MutedLabel, Row, SegmentedControl, SwitchRow } from "../ui/primitives";
+
+const ACCENTS: AccentKey[] = ["indigo", "blue", "violet"];
+
+export function SettingsScreen() {
+  const { tokens } = useTheme();
+  const state = useAppState();
+  const setThemeMode = useExecutionStore((store) => store.setThemeMode);
+  const setFontStyle = useExecutionStore((store) => store.setFontStyle);
+  const setAccent = useExecutionStore((store) => store.setAccent);
+  const setCompactMode = useExecutionStore((store) => store.setCompactMode);
+  const setShowFloatingTimer = useExecutionStore((store) => store.setShowFloatingTimer);
+  const addMetric = useExecutionStore((store) => store.addMetric);
+  const removeMetric = useExecutionStore((store) => store.removeMetric);
+  const updateMetric = useExecutionStore((store) => store.updateMetric);
+
+  const [metricLabel, setMetricLabel] = useState("");
+  const [metricType, setMetricType] = useState<MetricType>("time");
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.bg }}
+      contentContainerStyle={{ padding: 18, paddingBottom: 140, gap: 16 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Card style={{ gap: 14 }}>
+        <MutedLabel>Appearance</MutedLabel>
+
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>Theme</Text>
+          <SegmentedControl<ThemeMode>
+            options={[
+              { value: "system", label: "System" },
+              { value: "light", label: "Light" },
+              { value: "dark", label: "Dark" },
+            ]}
+            value={state.themeMode}
+            onChange={setThemeMode}
+          />
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>Font Style</Text>
+          <SegmentedControl<FontStyleId>
+            options={[
+              { value: "system", label: "System" },
+              { value: "inter", label: "Inter" },
+              { value: "lora", label: "Lora" },
+              { value: "mono", label: "Mono" },
+            ]}
+            value={state.fontStyle}
+            onChange={setFontStyle}
+          />
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>Accent</Text>
+          <Row gap={10}>
+            {ACCENTS.map((accentKey) => {
+              const active = state.accent === accentKey;
+              return (
+                <Pressable
+                  key={accentKey}
+                  onPress={() => setAccent(accentKey)}
+                  style={{
+                    flex: 1,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: active ? tokens.accent : tokens.border,
+                    backgroundColor: active ? tokens.accentSubtle : "transparent",
+                    paddingVertical: 12,
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <View style={{ width: 18, height: 18, borderRadius: 999, backgroundColor: tokens.accent, opacity: active ? 1 : 0.4 }} />
+                  <Text style={{ color: active ? tokens.text : tokens.textSecondary, fontSize: 13, fontWeight: "600" }}>
+                    {ACCENT_LABELS[accentKey]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Row>
+        </View>
+
+        <SwitchRow
+          label="Compact day layout"
+          description="Tighter spacing on the Today screen."
+          value={state.compactMode}
+          onValueChange={setCompactMode}
+        />
+      </Card>
+
+      <Card style={{ gap: 14 }}>
+        <MutedLabel>Focus settings</MutedLabel>
+        <SwitchRow
+          label="Show floating timer"
+          description="Keep the timer visible while you work."
+          value={state.showFloatingTimer}
+          onValueChange={setShowFloatingTimer}
+        />
+        <Text style={{ color: tokens.textMuted, fontSize: 13 }}>
+          {state.timerMode === "pomodoro"
+            ? `Pomodoro mode: ${state.pomodoroConfig.workMinutes}m focus / ${state.pomodoroConfig.breakMinutes}m break × ${state.pomodoroConfig.rounds} rounds. Adjust in the timer panel.`
+            : "Free mode: the timer counts up while you work. Switch modes in the timer panel."}
+        </Text>
+      </Card>
+
+      <Card style={{ gap: 14 }}>
+        <MutedLabel>Custom inputs</MutedLabel>
+        {state.metrics.map((metric) => (
+          <Row key={metric.id} gap={8}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ color: tokens.text, fontSize: 14, fontWeight: "600" }}>
+                {metric.label} <Text style={{ color: tokens.textMuted, fontSize: 12 }}>({metric.type})</Text>
+              </Text>
+              <AppTextInput
+                placeholder="Target (optional)"
+                value={metric.target}
+                onChangeText={(value) => updateMetric(metric.id, "target", value)}
+              />
+            </View>
+            <IconButton onPress={() => removeMetric(metric.id)} accessibilityLabel="Remove input">
+              <Trash2 size={14} color={tokens.danger} />
+            </IconButton>
+          </Row>
+        ))}
+        <View style={{ gap: 8 }}>
+          <AppTextInput placeholder="New input label (e.g. Reading)" value={metricLabel} onChangeText={setMetricLabel} />
+          <SegmentedControl<MetricType>
+            options={[
+              { value: "time", label: "Time" },
+              { value: "number", label: "Number" },
+              { value: "text", label: "Text" },
+            ]}
+            value={metricType}
+            onChange={setMetricType}
+          />
+          <AppButton
+            label="Add custom input"
+            variant="outline"
+            onPress={() => {
+              addMetric(metricLabel, metricType);
+              setMetricLabel("");
+              setMetricType("time");
+            }}
+          />
+        </View>
+      </Card>
+    </ScrollView>
+  );
+}

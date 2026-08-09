@@ -14,6 +14,8 @@ import { ThemeProvider, useTheme } from "../src/theme/ThemeContext";
 import { LoadingScreen } from "../src/ui/primitives";
 import { FloatingTimer } from "../src/components/FloatingTimer";
 import { StandbyTimer } from "../src/components/StandbyTimer";
+import { AuthProvider } from "../src/auth/AuthProvider";
+import { SupabaseSyncBridge } from "../src/sync/SupabaseSyncBridge";
 
 // Hold the native splash until fonts + persisted state are ready AND at least
 // MIN_SPLASH_MS have passed since launch.
@@ -86,6 +88,7 @@ function RootStack() {
         <Stack.Screen name="journal" options={{ title: "Journal" }} />
         <Stack.Screen name="history" options={{ title: "History" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="auth" options={{ title: "Account", presentation: "modal" }} />
       </Stack>
       <FloatingTimer />
       <StandbyTimer />
@@ -96,10 +99,13 @@ function RootStack() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <ExecutionRuntime />
-        <RootStack />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <ExecutionRuntime />
+          <SupabaseSyncBridge />
+          <RootStack />
+        </ThemeProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }
