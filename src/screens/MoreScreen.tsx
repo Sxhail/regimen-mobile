@@ -4,7 +4,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, type Href } from "expo-router";
-import { BookOpen, ChevronRight, Flag, History, Kanban, Settings, Sparkles } from "lucide-react-native";
+import { BookOpen, ChevronRight, Compass, Flag, History, Kanban, Settings, Sparkles } from "lucide-react-native";
 
 import { useTheme } from "../theme/ThemeContext";
 import { Card, Row } from "../ui/primitives";
@@ -13,6 +13,7 @@ import { ScreenHeader } from "../components/ScreenHeader";
 const LINKS: Array<{ href: Href; label: string; description: string; icon: React.ComponentType<{ size?: number; color?: string }> }> = [
   { href: "/board", label: "Board", description: "Kanban: backlog, in progress, done", icon: Kanban },
   { href: "/goals", label: "Goals", description: "Yearly, monthly, and weekly goals", icon: Flag },
+  { href: "/principles" as Href, label: "Principles", description: "Rules you want in front of you every day", icon: Compass },
   { href: "/life", label: "Life", description: "Won and lost days across the year", icon: Sparkles },
   { href: "/journal", label: "Journal", description: "Daily and monthly reflections", icon: BookOpen },
   { href: "/history", label: "History", description: "Archived days and snapshots", icon: History },

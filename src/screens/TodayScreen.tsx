@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from "react-native";
 
 import { AppText as Text } from "../ui/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { Check, ChevronRight, Pause, Play, SlidersHorizontal } from "lucide-react-native";
 
 import { formatSeconds } from "../model/time";
@@ -24,9 +24,11 @@ import { ScreenHeader } from "../components/ScreenHeader";
 const DAY_MODULE_LABELS: Record<DayModuleId, string> = {
   agenda: "Today's agenda",
   next: "Up next",
+  inProgress: "In-progress tasks",
   goals: "Goals preview",
   habits: "Habits",
   stats: "Focus stats",
+  principles: "Principles",
   inputs: "Custom inputs",
 };
 
@@ -46,6 +48,7 @@ export function TodayScreen() {
   const dayModules = useExecutionStore((store) => store.dayModules);
   const toggleDayModule = useExecutionStore((store) => store.toggleDayModule);
   const startCalendarEvent = useExecutionStore((store) => store.startCalendarEvent);
+  const startTask = useExecutionStore((store) => store.startTask);
   const pauseTimer = useExecutionStore((store) => store.pauseTimer);
   const toggleHabit = useExecutionStore((store) => store.toggleHabit);
   const updateMetric = useExecutionStore((store) => store.updateMetric);
@@ -112,6 +115,33 @@ export function TodayScreen() {
             <Text style={{ color: tokens.textMuted, fontSize: 14 }}>
               Your agenda is clear. Add a time block in Planner.
             </Text>
+          )}
+        </Card>
+      ) : null}
+
+      {enabled("inProgress") ? (
+        <Card style={{ gap: 12 }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <MutedLabel>In progress</MutedLabel>
+            <Pressable onPress={() => router.push("/tasks" as Href)} hitSlop={8}>
+              <Row gap={2}>
+                <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: "600" }}>Tasks</Text>
+                <ChevronRight size={14} color={tokens.accent} />
+              </Row>
+            </Pressable>
+          </Row>
+          {state.tasks.filter((task) => !task.completed && task.kanbanStatus === "in_progress").length === 0 ? (
+            <EmptyState message="No tasks in progress." />
+          ) : (
+            state.tasks.filter((task) => !task.completed && task.kanbanStatus === "in_progress").map((task) => (
+              <Row key={task.id} style={{ alignItems: "center" }} gap={10}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>{task.title}</Text>
+                  <Text style={{ color: tokens.textMuted, fontSize: 12 }}>{formatSeconds(task.secondsSpent)}</Text>
+                </View>
+                <AppButton label={state.activeTaskId === task.id ? "Resume" : "Start"} small variant="outline" onPress={() => startTask(task.id)} />
+              </Row>
+            ))
           )}
         </Card>
       ) : null}
@@ -246,6 +276,27 @@ export function TodayScreen() {
           <StatTile label="Focused" value={formatSeconds(todayFocusSeconds)} />
           <StatTile label="Completed" value={String(completedTasks)} />
         </Row>
+      ) : null}
+
+      {enabled("principles") ? (
+        <Card style={{ gap: 12 }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <MutedLabel>Principles</MutedLabel>
+            <Pressable onPress={() => router.push("/principles" as Href)} hitSlop={8}>
+              <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: "600" }}>Manage</Text>
+            </Pressable>
+          </Row>
+          {state.principles.length === 0 ? (
+            <EmptyState message="No principles yet." />
+          ) : (
+            state.principles.slice(0, 3).map((principle) => (
+              <View key={principle.id} style={{ gap: 2 }}>
+                <Text style={{ color: tokens.text, fontSize: 15, fontWeight: "600" }}>{principle.title}</Text>
+                {principle.note ? <Text style={{ color: tokens.textSecondary, fontSize: 13 }}>{principle.note}</Text> : null}
+              </View>
+            ))
+          )}
+        </Card>
       ) : null}
 
       {enabled("inputs") && state.metrics.length > 0 ? (

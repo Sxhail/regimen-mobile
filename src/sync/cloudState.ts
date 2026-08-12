@@ -9,6 +9,7 @@ import type {
   GoalItem,
   Habit,
   MetricField,
+  PrincipleItem,
   Task,
   TaskGroup,
 } from "../model/types";
@@ -19,6 +20,7 @@ export type CloudAppState = {
   state: unknown;
   day_modules: unknown;
   updated_at: string | null;
+  deleted_ids: Record<string, string[]>;
 };
 
 type CloudRow = Record<string, unknown> & {
@@ -33,6 +35,7 @@ const MUTABLE_TABLES = [
   "regimen_habits",
   "regimen_metrics",
   "regimen_goals",
+  "regimen_principles",
   "regimen_calendar_events",
   "regimen_calendar_blocks",
   "regimen_focus_sessions",
@@ -105,6 +108,7 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
     habits,
     metrics,
     goals,
+    principles,
     calendarEvents,
     calendarBlocks,
     focusSessions,
@@ -117,13 +121,14 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
     selectRows("regimen_habits", userId),
     selectRows("regimen_metrics", userId),
     selectRows("regimen_goals", userId),
+    selectRows("regimen_principles", userId),
     selectRows("regimen_calendar_events", userId),
     selectRows("regimen_calendar_blocks", userId),
     selectRows("regimen_focus_sessions", userId),
     selectRows(
       "regimen_daily_snapshots",
       userId,
-      "user_id,day_key,focus_seconds,completed_tasks,completed_habits,started_before_phone,avoided_scrolling_before_work,created_at,updated_at",
+      "user_id,day_key,focus_seconds,completed_tasks,completed_habits,total_habits,started_before_phone,avoided_scrolling_before_work,created_at,updated_at,deleted_at",
     ),
     selectRows("regimen_daily_history", userId),
   ]);
@@ -139,6 +144,7 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
     habits.length ||
     metrics.length ||
     goals.length ||
+    principles.length ||
     calendarEvents.length ||
     calendarBlocks.length ||
     focusSessions.length ||
@@ -204,6 +210,21 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
       userState?.goal_drafts && typeof userState.goal_drafts === "object"
         ? (userState.goal_drafts as AppState["goalDrafts"])
         : base.goalDrafts,
+    principleDraft:
+      userState?.principle_draft && typeof userState.principle_draft === "object"
+        ? (userState.principle_draft as AppState["principleDraft"])
+        : base.principleDraft,
+    themeMode:
+      userState?.theme_mode === "light" || userState?.theme_mode === "dark" || userState?.theme_mode === "system"
+        ? userState.theme_mode
+        : base.themeMode,
+    fontStyle:
+      userState?.font_style === "inter" ||
+      userState?.font_style === "lora" ||
+      userState?.font_style === "mono" ||
+      userState?.font_style === "system"
+        ? userState.font_style
+        : base.fontStyle,
     currentDayKey: fallbackString(userState?.current_day_key, base.currentDayKey),
     taskGroups: sortByOrder(activeRows(taskGroups)).map(
       (group): TaskGroup => ({
@@ -241,6 +262,13 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
       }),
     ),
     goals: nextGoals,
+    principles: sortByOrder(activeRows(principles)).map(
+      (principle): PrincipleItem => ({
+        id: fallbackString(principle.id),
+        title: fallbackString(principle.title, "Untitled principle"),
+        note: fallbackString(principle.note),
+      }),
+    ),
     calendarEvents: activeRows(calendarEvents).map(
       (event): CalendarEvent => ({
         id: fallbackString(event.id),
@@ -306,7 +334,7 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
             focusSeconds: fallbackNumber(snapshot.focus_seconds),
             completedTasks: fallbackNumber(snapshot.completed_tasks),
             completedHabits,
-            totalHabits: Math.max(completedHabits, base.habits.length),
+            totalHabits: fallbackNumber(snapshot.total_habits, Math.max(completedHabits, base.habits.length)),
             startedBeforePhone: fallbackBoolean(snapshot.started_before_phone),
             avoidedScrollingBeforeWork: fallbackBoolean(snapshot.avoided_scrolling_before_work),
           } satisfies DailySnapshot,
@@ -344,8 +372,21 @@ export async function fetchCloudAppState(userId: string): Promise<CloudAppState 
 
   return {
     state: nextState,
-    day_modules: undefined,
+    day_modules: userState?.day_modules,
     updated_at: typeof userState?.updated_at === "string" ? userState.updated_at : null,
+    deleted_ids: {
+      regimen_task_groups: taskGroups.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_tasks: tasks.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_habits: habits.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_metrics: metrics.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_goals: goals.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_principles: principles.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_calendar_events: calendarEvents.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_calendar_blocks: calendarBlocks.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_focus_sessions: focusSessions.filter((row) => row.deleted_at).map((row) => fallbackString(row.id)),
+      regimen_daily_snapshots: dailySnapshots.filter((row) => row.deleted_at).map((row) => fallbackString(row.day_key)),
+      regimen_daily_history: dailyHistory.filter((row) => row.deleted_at).map((row) => fallbackString(row.day_key)),
+    },
   };
 }
 
@@ -369,7 +410,7 @@ async function replaceRows(table: (typeof MUTABLE_TABLES)[number], userId: strin
   }
 }
 
-export async function upsertCloudAppState(userId: string, state: AppState, _dayModules: DayModuleId[]) {
+export async function upsertCloudAppState(userId: string, state: AppState, dayModules: DayModuleId[]) {
   if (!supabase) {
     return;
   }
@@ -401,6 +442,11 @@ export async function upsertCloudAppState(userId: string, state: AppState, _dayM
       accent: state.accent,
       prompts: state.prompts,
       goal_drafts: state.goalDrafts,
+      principle_draft: state.principleDraft,
+      theme_mode: state.themeMode,
+      font_style: state.fontStyle,
+      day_modules: dayModules,
+      schema_version: 2,
       updated_at: now,
     },
     { onConflict: "user_id" },
@@ -486,6 +532,19 @@ export async function upsertCloudAppState(userId: string, state: AppState, _dayM
       ),
     ),
     replaceRows(
+      "regimen_principles",
+      userId,
+      state.principles.map((principle, index) => ({
+        user_id: userId,
+        id: principle.id,
+        title: principle.title,
+        note: principle.note,
+        sort_order: index,
+        created_at: now,
+        updated_at: now,
+      })),
+    ),
+    replaceRows(
       "regimen_calendar_events",
       userId,
       state.calendarEvents.map((event) => ({
@@ -548,6 +607,7 @@ export async function upsertCloudAppState(userId: string, state: AppState, _dayM
         focus_seconds: snapshot.focusSeconds,
         completed_tasks: snapshot.completedTasks,
         completed_habits: snapshot.completedHabits,
+        total_habits: snapshot.totalHabits,
         started_before_phone: Boolean(snapshot.startedBeforePhone),
         avoided_scrolling_before_work: Boolean(snapshot.avoidedScrollingBeforeWork),
         created_at: now,

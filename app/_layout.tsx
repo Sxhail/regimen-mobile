@@ -84,6 +84,7 @@ function RootStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="board" options={{ title: "Board" }} />
         <Stack.Screen name="goals" options={{ title: "Goals" }} />
+        <Stack.Screen name="principles" options={{ title: "Principles" }} />
         <Stack.Screen name="life" options={{ title: "Life calendar" }} />
         <Stack.Screen name="journal" options={{ title: "Journal" }} />
         <Stack.Screen name="history" options={{ title: "History" }} />

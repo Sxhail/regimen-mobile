@@ -72,6 +72,12 @@ export type GoalItem = {
   note: string;
 };
 
+export type PrincipleItem = {
+  id: string;
+  title: string;
+  note: string;
+};
+
 export type GoalDraft = {
   title: string;
   note: string;
@@ -148,7 +154,9 @@ export type AppState = {
   prompts: PromptSet;
   metrics: MetricField[];
   goals: Record<GoalBucketKey, GoalItem[]>;
+  principles: PrincipleItem[];
   goalDrafts: Record<GoalBucketKey, GoalDraft>;
+  principleDraft: GoalDraft;
   activeTaskId: string | null;
   activeCalendarEventId: string | null;
   isRunning: boolean;

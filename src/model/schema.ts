@@ -81,6 +81,19 @@ export async function initializeRowSchema() {
       last_synced_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS local_principles (
+      user_id TEXT,
+      id TEXT PRIMARY KEY NOT NULL,
+      title TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      deleted_at TEXT,
+      dirty INTEGER NOT NULL DEFAULT 1,
+      last_synced_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS local_metrics (
       user_id TEXT,
       id TEXT PRIMARY KEY NOT NULL,

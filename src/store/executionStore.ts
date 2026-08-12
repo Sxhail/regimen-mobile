@@ -34,7 +34,7 @@ import type {
 } from "../model/types";
 import { minutesToTimeValue, timeValueToMinutes } from "../model/time";
 
-export const DAY_MODULE_IDS = ["agenda", "next", "goals", "habits", "stats", "inputs"] as const;
+export const DAY_MODULE_IDS = ["agenda", "next", "inProgress", "goals", "habits", "stats", "principles", "inputs"] as const;
 export type DayModuleId = (typeof DAY_MODULE_IDS)[number];
 
 type ExecutionStore = {
@@ -78,6 +78,9 @@ type ExecutionStore = {
   updateGoalDraft: (bucket: GoalBucketKey, key: keyof GoalDraft, value: string) => void;
   addGoal: (bucket: GoalBucketKey) => void;
   removeGoal: (bucket: GoalBucketKey, id: string) => void;
+  updatePrincipleDraft: (key: keyof GoalDraft, value: string) => void;
+  addPrinciple: () => void;
+  removePrinciple: (id: string) => void;
 
   setHardestTask: (value: string) => void;
   setFirstStep: (value: string) => void;
@@ -502,6 +505,42 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => {
       update((current) => ({
         ...current,
         goals: { ...current.goals, [bucket]: current.goals[bucket].filter((goal) => goal.id !== id) },
+      }));
+    },
+
+    updatePrincipleDraft: (key, value) => {
+      update((current) => ({
+        ...current,
+        principleDraft: { ...current.principleDraft, [key]: value },
+      }));
+    },
+
+    addPrinciple: () => {
+      update((current) => {
+        const title = current.principleDraft.title.trim();
+        if (!title) {
+          return current;
+        }
+
+        return {
+          ...current,
+          principles: [
+            ...current.principles,
+            {
+              id: `principle-${Date.now()}`,
+              title,
+              note: current.principleDraft.note.trim(),
+            },
+          ],
+          principleDraft: { title: "", note: "" },
+        };
+      });
+    },
+
+    removePrinciple: (id) => {
+      update((current) => ({
+        ...current,
+        principles: current.principles.filter((principle) => principle.id !== id),
       }));
     },
 
