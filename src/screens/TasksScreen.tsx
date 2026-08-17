@@ -62,7 +62,7 @@ function TaskRow({ task }: { task: Task }) {
               <Text
                 style={{
                   color: task.completed ? tokens.textMuted : tokens.text,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: "600",
                   textDecorationLine: task.completed ? "line-through" : "none",
                 }}
@@ -204,7 +204,7 @@ export function TasksScreen() {
                       style={{ flex: 1 }}
                     />
                   ) : (
-                    <Text style={{ color: tokens.text, fontSize: 18, fontWeight: "700", flex: 1 }}>{group.title}</Text>
+                    <Text style={{ color: tokens.text, fontSize: 16, fontWeight: "700", flex: 1 }}>{group.title}</Text>
                   )}
                   <Row gap={6}>
                     <IconButton
